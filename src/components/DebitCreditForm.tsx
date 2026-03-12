@@ -98,6 +98,7 @@ export default function DebitCreditForm({
           `${mode === "debit" ? "Debit" : "Credit"} of ₹${amount} saved successfully!`
         );
         handleDiscard();
+        fetchAccounts();
         onSaved();
       }
     } catch {

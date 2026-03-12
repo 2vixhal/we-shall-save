@@ -63,7 +63,7 @@ export default function CompleteProfilePage() {
         return;
       }
 
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch {
       setError("Something went wrong");
       setLoading(false);

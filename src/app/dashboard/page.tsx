@@ -110,7 +110,7 @@ export default function DashboardPage() {
               </svg>
             }
           >
-            <DebitCreditForm onSaved={handleDataChanged} />
+            <DebitCreditForm key={`debit-${refreshKey}`} onSaved={handleDataChanged} />
           </DashboardBox>
 
           <DashboardBox
