@@ -1,0 +1,63 @@
+"use client";
+
+interface DashboardBoxProps {
+  title: string;
+  icon: React.ReactNode;
+  color: "blue" | "green" | "purple";
+  isActive: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+const colorMap = {
+  blue: {
+    bg: "bg-gradient-to-r from-blue-600 to-blue-700",
+    hover: "hover:from-blue-700 hover:to-blue-800",
+    ring: "ring-blue-400",
+  },
+  green: {
+    bg: "bg-gradient-to-r from-emerald-600 to-emerald-700",
+    hover: "hover:from-emerald-700 hover:to-emerald-800",
+    ring: "ring-emerald-400",
+  },
+  purple: {
+    bg: "bg-gradient-to-r from-purple-600 to-purple-700",
+    hover: "hover:from-purple-700 hover:to-purple-800",
+    ring: "ring-purple-400",
+  },
+};
+
+export default function DashboardBox({
+  title,
+  icon,
+  color,
+  isActive,
+  onClick,
+  children,
+}: DashboardBoxProps) {
+  const colors = colorMap[color];
+
+  return (
+    <div className="flex flex-col">
+      <button
+        onClick={onClick}
+        className={`${colors.bg} ${colors.hover} ${
+          isActive ? `ring-4 ${colors.ring}` : ""
+        } text-white rounded-2xl p-8 shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[180px] w-full`}
+      >
+        <div className="mb-3">{icon}</div>
+        <h2 className="text-xl font-bold text-center">{title}</h2>
+      </button>
+
+      <div
+        className={`overflow-hidden transition-all duration-500 ease-in-out ${
+          isActive ? "max-h-[2000px] opacity-100 mt-4" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
