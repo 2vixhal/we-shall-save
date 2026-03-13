@@ -10,12 +10,14 @@ interface Account {
 
 const CATEGORIES = [
   "Food",
-  "Transport",
+  "Petrol",
   "Shopping",
   "Bills",
   "Entertainment",
   "Health",
   "Education",
+  "Clothing",
+  "UPI Lite",
   "Other",
 ];
 
@@ -27,6 +29,7 @@ export default function DebitCreditForm({
   const [mode, setMode] = useState<"debit" | "credit">("debit");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [receivedFrom, setReceivedFrom] = useState("");
   const [accountId, setAccountId] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -49,6 +52,7 @@ export default function DebitCreditForm({
   const handleDiscard = () => {
     setAmount("");
     setCategory("");
+    setCustomCategory("");
     setReceivedFrom("");
     setAccountId("");
     setError("");
@@ -69,6 +73,11 @@ export default function DebitCreditForm({
       return;
     }
 
+    if (mode === "debit" && category === "Other" && !customCategory.trim()) {
+      setError("Please specify the expense category");
+      return;
+    }
+
     if (mode === "credit" && !receivedFrom) {
       setError("Please enter who you received this from");
       return;
@@ -83,7 +92,9 @@ export default function DebitCreditForm({
         body: JSON.stringify({
           type: mode,
           amount: parseFloat(amount),
-          category: mode === "debit" ? category : undefined,
+          category: mode === "debit"
+            ? category === "Other" ? customCategory.trim() : category
+            : undefined,
           receivedFrom: mode === "credit" ? receivedFrom : undefined,
           accountId,
         }),
@@ -164,7 +175,10 @@ export default function DebitCreditForm({
             </label>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (e.target.value !== "Other") setCustomCategory("");
+              }}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             >
               <option value="">Select a category</option>
@@ -174,6 +188,15 @@ export default function DebitCreditForm({
                 </option>
               ))}
             </select>
+            {category === "Other" && (
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Type your expense category"
+                className="w-full mt-2 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            )}
           </div>
         ) : (
           <div>
