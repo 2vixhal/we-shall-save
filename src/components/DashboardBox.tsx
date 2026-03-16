@@ -3,7 +3,7 @@
 interface DashboardBoxProps {
   title: string;
   icon: React.ReactNode;
-  color: "blue" | "green" | "purple";
+  color: "blue" | "green" | "purple" | "amber";
   isActive: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -24,6 +24,11 @@ const colorMap = {
     bg: "bg-gradient-to-r from-purple-600 to-purple-700",
     hover: "hover:from-purple-700 hover:to-purple-800",
     ring: "ring-purple-400",
+  },
+  amber: {
+    bg: "bg-gradient-to-r from-amber-600 to-amber-700",
+    hover: "hover:from-amber-700 hover:to-amber-800",
+    ring: "ring-amber-400",
   },
 };
 

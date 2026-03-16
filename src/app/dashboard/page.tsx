@@ -7,8 +7,9 @@ import DashboardBox from "@/components/DashboardBox";
 import DebitCreditForm from "@/components/DebitCreditForm";
 import CheckBalance from "@/components/CheckBalance";
 import CreateAccount from "@/components/CreateAccount";
+import TransactionHistory from "@/components/TransactionHistory";
 
-type ActiveSection = "debit-credit" | "check-balance" | "create-account" | null;
+type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | null;
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -88,7 +89,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <DashboardBox
             title="Add Debit / Credit"
             color="blue"
@@ -159,6 +160,30 @@ export default function DashboardPage() {
             }
           >
             <CreateAccount onCreated={handleDataChanged} />
+          </DashboardBox>
+
+          <DashboardBox
+            title="Transaction History"
+            color="amber"
+            isActive={activeSection === "transactions"}
+            onClick={() => handleToggle("transactions")}
+            icon={
+              <svg
+                className="w-10 h-10"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                />
+              </svg>
+            }
+          >
+            <TransactionHistory key={`txn-${refreshKey}`} onChanged={handleDataChanged} />
           </DashboardBox>
         </div>
       </main>
