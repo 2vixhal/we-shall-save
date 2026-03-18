@@ -54,15 +54,13 @@ export default function DashboardBox({
         <h2 className="text-xl font-bold text-center">{title}</h2>
       </button>
 
-      <div
-        className={`overflow-hidden transition-all duration-500 ease-in-out ${
-          isActive ? "max-h-[2000px] opacity-100 mt-4" : "max-h-0 opacity-0"
-        }`}
-      >
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-          {children}
+      {isActive && (
+        <div className="mt-4 animate-[fadeIn_0.3s_ease-in-out]">
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            {children}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

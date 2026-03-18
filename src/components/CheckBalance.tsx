@@ -121,13 +121,11 @@ export default function CheckBalance() {
           {showAnalysis ? "Hide Spending Analysis" : "Spending Analysis"}
         </button>
 
-        <div
-          className={`overflow-hidden transition-all duration-500 ease-in-out ${
-            showAnalysis ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-          }`}
-        >
-          {showAnalysis && <SpendingAnalysis />}
-        </div>
+        {showAnalysis && (
+          <div className="animate-[fadeIn_0.3s_ease-in-out]">
+            <SpendingAnalysis />
+          </div>
+        )}
       </div>
     </div>
   );
