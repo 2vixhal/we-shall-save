@@ -23,13 +23,20 @@ export async function GET(req: NextRequest) {
 
   const startOfMonth = new Date(y, m, 1);
   const endOfMonth = new Date(y, m + 1, 1);
-  const dateFilter = { $gte: startOfMonth, $lt: endOfMonth };
+  const dateRange = { $gte: startOfMonth, $lt: endOfMonth };
+  const txDateFilter = {
+    $or: [
+      { date: dateRange },
+      { date: { $exists: false }, createdAt: dateRange },
+      { date: null, createdAt: dateRange },
+    ],
+  };
 
   const [monthlyDebits, monthlyInvestments, monthlyLendings, accounts] =
     await Promise.all([
-      Transaction.find({ userId: session.user.id, type: "debit", date: dateFilter }),
-      Investment.find({ userId: session.user.id, date: dateFilter }),
-      Lending.find({ userId: session.user.id, type: "lent", date: dateFilter }),
+      Transaction.find({ userId: session.user.id, type: "debit", ...txDateFilter }),
+      Investment.find({ userId: session.user.id, date: dateRange }),
+      Lending.find({ userId: session.user.id, type: "lent", date: dateRange }),
       DepositAccount.find({ userId: session.user.id }),
     ]);
 

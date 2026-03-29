@@ -23,14 +23,21 @@ export async function GET(req: NextRequest) {
 
   const startOfMonth = new Date(y, m, 1);
   const endOfMonth = new Date(y, m + 1, 1);
-  const dateFilter = { $gte: startOfMonth, $lt: endOfMonth };
+  const dateRange = { $gte: startOfMonth, $lt: endOfMonth };
+  const txDateFilter = {
+    $or: [
+      { date: dateRange },
+      { date: { $exists: false }, createdAt: dateRange },
+      { date: null, createdAt: dateRange },
+    ],
+  };
 
   const [accounts, monthlyTransactions, monthlyInvestments, monthlyLendings] =
     await Promise.all([
       DepositAccount.find({ userId: session.user.id }),
-      Transaction.find({ userId: session.user.id, date: dateFilter }),
-      Investment.find({ userId: session.user.id, date: dateFilter }),
-      Lending.find({ userId: session.user.id, date: dateFilter }),
+      Transaction.find({ userId: session.user.id, ...txDateFilter }),
+      Investment.find({ userId: session.user.id, date: dateRange }),
+      Lending.find({ userId: session.user.id, date: dateRange }),
     ]);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);

@@ -23,12 +23,17 @@ export async function GET(req: NextRequest) {
     const y = parseInt(yearParam);
     const start = new Date(y, m, 1);
     const end = new Date(y, m + 1, 1);
-    query.date = { $gte: start, $lt: end };
+    const dateRange = { $gte: start, $lt: end };
+    query.$or = [
+      { date: dateRange },
+      { date: { $exists: false }, createdAt: dateRange },
+      { date: null, createdAt: dateRange },
+    ];
   }
 
   const transactions = await Transaction.find(query)
     .populate("accountId", "name")
-    .sort({ date: -1 });
+    .sort({ date: -1, createdAt: -1 });
 
   return NextResponse.json(transactions);
 }
