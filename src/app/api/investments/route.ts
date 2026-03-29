@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
-import { Transaction } from "@/models/Transaction";
+import { Investment } from "@/models/Investment";
 import { DepositAccount } from "@/models/DepositAccount";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   await connectDB();
 
@@ -21,47 +20,28 @@ export async function GET(req: NextRequest) {
   if (monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);
     const y = parseInt(yearParam);
-    const start = new Date(y, m, 1);
-    const end = new Date(y, m + 1, 1);
-    query.date = { $gte: start, $lt: end };
+    query.date = { $gte: new Date(y, m, 1), $lt: new Date(y, m + 1, 1) };
   }
 
-  const transactions = await Transaction.find(query)
+  const investments = await Investment.find(query)
     .populate("accountId", "name")
     .sort({ date: -1 });
 
-  return NextResponse.json(transactions);
+  return NextResponse.json(investments);
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
-  const { type, amount, category, receivedFrom, accountId, date } =
-    await req.json();
+  const { amount, category, subCategory, accountId, date } = await req.json();
 
-  if (!type || !amount || !accountId) {
+  if (!amount || !category || !accountId)
     return NextResponse.json(
-      { error: "Type, amount, and account are required" },
+      { error: "Amount, category, and account are required" },
       { status: 400 }
     );
-  }
-
-  if (type === "debit" && !category) {
-    return NextResponse.json(
-      { error: "Category is required for debit transactions" },
-      { status: 400 }
-    );
-  }
-
-  if (type === "credit" && !receivedFrom) {
-    return NextResponse.json(
-      { error: "Received from is required for credit transactions" },
-      { status: 400 }
-    );
-  }
 
   await connectDB();
 
@@ -69,34 +49,25 @@ export async function POST(req: NextRequest) {
     _id: accountId,
     userId: session.user.id,
   });
-
-  if (!account) {
+  if (!account)
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
-  }
-
-  if (type === "debit" && account.balance < amount) {
+  if (account.balance < amount)
     return NextResponse.json(
-      { error: "Insufficient balance in this account" },
+      { error: "Insufficient balance" },
       { status: 400 }
     );
-  }
 
-  const transaction = await Transaction.create({
+  const investment = await Investment.create({
     userId: session.user.id,
-    type,
     amount,
-    category: type === "debit" ? category : undefined,
-    receivedFrom: type === "credit" ? receivedFrom : undefined,
+    category,
+    subCategory: subCategory || undefined,
     accountId,
     date: date ? new Date(date) : new Date(),
   });
 
-  if (type === "debit") {
-    account.balance -= amount;
-  } else {
-    account.balance += amount;
-  }
+  account.balance -= amount;
   await account.save();
 
-  return NextResponse.json(transaction, { status: 201 });
+  return NextResponse.json(investment, { status: 201 });
 }

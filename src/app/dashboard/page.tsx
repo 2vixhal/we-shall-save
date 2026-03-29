@@ -8,8 +8,10 @@ import DebitCreditForm from "@/components/DebitCreditForm";
 import CheckBalance from "@/components/CheckBalance";
 import CreateAccount from "@/components/CreateAccount";
 import TransactionHistory from "@/components/TransactionHistory";
+import InvestmentTracker from "@/components/InvestmentTracker";
+import LendingTracker from "@/components/LendingTracker";
 
-type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | null;
+type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | "investments" | "lending" | null;
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -18,18 +20,12 @@ export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/");
-    }
+    if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
   useEffect(() => {
-    if (
-      status === "authenticated" &&
-      !(session?.user as Record<string, unknown>)?.profileComplete
-    ) {
+    if (status === "authenticated" && !(session?.user as Record<string, unknown>)?.profileComplete)
       router.push("/complete-profile");
-    }
   }, [status, session, router]);
 
   const handleToggle = useCallback((section: ActiveSection) => {
@@ -42,8 +38,8 @@ export default function DashboardPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+        <div className="text-stone-400 text-sm">Loading...</div>
       </div>
     );
   }
@@ -51,63 +47,38 @@ export default function DashboardPage() {
   if (!session) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-stone-50">
+      <header className="bg-white border-b border-stone-200/80">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                />
+            <div className="w-10 h-10 rounded-xl bg-stone-800 flex items-center justify-center shadow-sm">
+              <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">
-                Finance Tracker
-              </h1>
-              <p className="text-sm text-gray-500">
-                Welcome, {session.user.name}
-              </p>
+              <h1 className="text-lg font-bold text-stone-800 tracking-tight">Finance Tracker</h1>
+              <p className="text-xs text-stone-500">Welcome, {session.user.name}</p>
             </div>
           </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-sm text-gray-500 hover:text-red-500 font-medium transition-colors cursor-pointer"
-          >
+          <button onClick={() => signOut({ callbackUrl: "/" })}
+            className="text-xs text-stone-500 hover:text-red-600 font-semibold transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-red-50">
             Sign Out
           </button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <DashboardBox
-            title="Add Debit / Credit"
-            color="blue"
+            title="Add Debit / Credit" color="terracotta"
             isActive={activeSection === "debit-credit"}
             onClick={() => handleToggle("debit-credit")}
             icon={
-              <svg
-                className="w-10 h-10"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                />
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             }
           >
@@ -115,23 +86,13 @@ export default function DashboardPage() {
           </DashboardBox>
 
           <DashboardBox
-            title="Check Balance"
-            color="green"
+            title="Check Balance" color="sage"
             isActive={activeSection === "check-balance"}
             onClick={() => handleToggle("check-balance")}
             icon={
-              <svg
-                className="w-10 h-10"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             }
           >
@@ -139,23 +100,13 @@ export default function DashboardPage() {
           </DashboardBox>
 
           <DashboardBox
-            title="Create Deposit Account"
-            color="purple"
+            title="New Account" color="teal"
             isActive={activeSection === "create-account"}
             onClick={() => handleToggle("create-account")}
             icon={
-              <svg
-                className="w-10 h-10"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             }
           >
@@ -163,27 +114,45 @@ export default function DashboardPage() {
           </DashboardBox>
 
           <DashboardBox
-            title="Transaction History"
-            color="amber"
+            title="Transactions" color="clay"
             isActive={activeSection === "transactions"}
             onClick={() => handleToggle("transactions")}
             icon={
-              <svg
-                className="w-10 h-10"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                />
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
             }
           >
             <TransactionHistory key={`txn-${refreshKey}`} onChanged={handleDataChanged} />
+          </DashboardBox>
+
+          <DashboardBox
+            title="Investments" color="amber"
+            isActive={activeSection === "investments"}
+            onClick={() => handleToggle("investments")}
+            icon={
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            }
+          >
+            <InvestmentTracker key={`inv-${refreshKey}`} onChanged={handleDataChanged} />
+          </DashboardBox>
+
+          <DashboardBox
+            title="Lending" color="slate"
+            isActive={activeSection === "lending"}
+            onClick={() => handleToggle("lending")}
+            icon={
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            }
+          >
+            <LendingTracker key={`lend-${refreshKey}`} onChanged={handleDataChanged} />
           </DashboardBox>
         </div>
       </main>

@@ -1,48 +1,68 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { Transaction } from "@/models/Transaction";
+import { Investment } from "@/models/Investment";
+import { Lending } from "@/models/Lending";
 import { DepositAccount } from "@/models/DepositAccount";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   await connectDB();
 
+  const { searchParams } = new URL(req.url);
+  const monthParam = searchParams.get("month");
+  const yearParam = searchParams.get("year");
+
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const m = monthParam !== null ? parseInt(monthParam) : now.getMonth();
+  const y = yearParam !== null ? parseInt(yearParam) : now.getFullYear();
 
-  const monthlyDebits = await Transaction.find({
-    userId: session.user.id,
-    type: "debit",
-    createdAt: { $gte: startOfMonth },
-  });
+  const startOfMonth = new Date(y, m, 1);
+  const endOfMonth = new Date(y, m + 1, 1);
+  const dateFilter = { $gte: startOfMonth, $lt: endOfMonth };
 
-  const accounts = await DepositAccount.find({ userId: session.user.id });
+  const [monthlyDebits, monthlyInvestments, monthlyLendings, accounts] =
+    await Promise.all([
+      Transaction.find({ userId: session.user.id, type: "debit", date: dateFilter }),
+      Investment.find({ userId: session.user.id, date: dateFilter }),
+      Lending.find({ userId: session.user.id, type: "lent", date: dateFilter }),
+      DepositAccount.find({ userId: session.user.id }),
+    ]);
+
   const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
-  const totalSpent = monthlyDebits.reduce((sum, tx) => sum + tx.amount, 0);
-
   const categoryBreakdown: Record<string, number> = {};
+
   for (const tx of monthlyDebits) {
     const cat = tx.category || "Other";
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + tx.amount;
   }
 
-  const categories = Object.entries(categoryBreakdown).map(
-    ([name, amount]) => ({
+  const totalInvested = monthlyInvestments.reduce((s, i) => s + i.amount, 0);
+  if (totalInvested > 0) categoryBreakdown["Investment"] = totalInvested;
+
+  const totalLent = monthlyLendings.reduce((s, l) => s + l.amount, 0);
+  if (totalLent > 0) categoryBreakdown["Lent"] = totalLent;
+
+  const totalSpent = Object.values(categoryBreakdown).reduce((s, v) => s + v, 0);
+
+  const categories = Object.entries(categoryBreakdown)
+    .map(([name, amount]) => ({
       name,
       amount,
       percentage: totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0,
-    })
-  );
+    }))
+    .sort((a, b) => b.amount - a.amount);
 
   return NextResponse.json({
     totalSpent,
     totalLeft: totalBalance,
     categories,
+    month: m,
+    year: y,
   });
 }

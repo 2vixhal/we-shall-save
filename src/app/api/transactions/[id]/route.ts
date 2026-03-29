@@ -14,7 +14,7 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const { type, amount, category, receivedFrom, accountId } = await req.json();
+  const { type, amount, category, receivedFrom, accountId, date } = await req.json();
 
   await connectDB();
 
@@ -88,6 +88,7 @@ export async function PUT(
   existing.category = type === "debit" ? category : undefined;
   existing.receivedFrom = type === "credit" ? receivedFrom : undefined;
   existing.accountId = accountId;
+  if (date) existing.date = new Date(date);
   await existing.save();
 
   const updated = await Transaction.findById(id).populate("accountId", "name");

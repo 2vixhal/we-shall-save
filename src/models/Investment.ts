@@ -1,36 +1,31 @@
 import mongoose, { Schema, models, model } from "mongoose";
 
-export interface ITransaction {
+export interface IInvestment {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
-  type: "debit" | "credit";
   amount: number;
-  category?: string;
-  receivedFrom?: string;
+  category: string;
+  subCategory?: string;
   accountId: mongoose.Types.ObjectId;
   date: Date;
-  salaryMonth?: string;
   createdAt: Date;
 }
 
-const TransactionSchema = new Schema<ITransaction>(
+const InvestmentSchema = new Schema<IInvestment>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    type: { type: String, enum: ["debit", "credit"], required: true },
     amount: { type: Number, required: true },
-    category: { type: String },
-    receivedFrom: { type: String },
+    category: { type: String, required: true },
+    subCategory: { type: String },
     accountId: {
       type: Schema.Types.ObjectId,
       ref: "DepositAccount",
       required: true,
     },
     date: { type: Date, default: Date.now },
-    salaryMonth: { type: String },
   },
   { timestamps: true }
 );
 
-export const Transaction =
-  models.Transaction ||
-  model<ITransaction>("Transaction", TransactionSchema);
+export const Investment =
+  models.Investment || model<IInvestment>("Investment", InvestmentSchema);

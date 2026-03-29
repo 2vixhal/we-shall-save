@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, balance } = await req.json();
+  const { name, balance, source, sourceMonth } = await req.json();
 
   if (!name) {
     return NextResponse.json(
@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
     userId: session.user.id,
     name,
     balance: balance || 0,
+    source: source || undefined,
+    sourceMonth: source === "Salary" && sourceMonth ? sourceMonth : undefined,
   });
 
   return NextResponse.json(account, { status: 201 });
