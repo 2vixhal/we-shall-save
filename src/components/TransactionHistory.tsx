@@ -24,55 +24,6 @@ const CATEGORIES = [
   "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Other",
 ];
 
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function generateCSV(transactions: TransactionItem[], accounts: Account[], month: number, year: number): string {
-  const getAccName = (accountId: TransactionItem["accountId"]) => {
-    if (typeof accountId === "object" && accountId?.name) return accountId.name;
-    const acc = accounts.find((a) => a._id === accountId);
-    return acc?.name || "Unknown";
-  };
-
-  const debits = transactions.filter((t) => t.type === "debit");
-  const credits = transactions.filter((t) => t.type === "credit");
-
-  const categoryTotals: Record<string, number> = {};
-  for (const tx of debits) {
-    const cat = tx.category || "Other";
-    categoryTotals[cat] = (categoryTotals[cat] || 0) + tx.amount;
-  }
-
-  const totalDebit = debits.reduce((s, t) => s + t.amount, 0);
-  const totalCredit = credits.reduce((s, t) => s + t.amount, 0);
-
-  const rows: string[] = [];
-  rows.push(`Expense Report — ${MONTHS_SHORT[month]} ${year}`);
-  rows.push("");
-  rows.push("Type,Description,Amount (₹),Date,Time,Account");
-
-  for (const tx of transactions) {
-    const d = new Date(tx.date || tx.createdAt);
-    const dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-    const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    const desc = tx.type === "debit" ? (tx.category || "Other") : `From: ${tx.receivedFrom || "Unknown"}`;
-    const escaped = (s: string) => `"${s.replace(/"/g, '""')}"`;
-    rows.push(`${tx.type === "debit" ? "Debit" : "Credit"},${escaped(desc)},${tx.amount},${dateStr},${timeStr},${escaped(getAccName(tx.accountId))}`);
-  }
-
-  rows.push("");
-  rows.push("SUMMARY");
-  rows.push(`Total Expenditure,₹${totalDebit.toLocaleString()}`);
-  rows.push(`Total Credit,₹${totalCredit.toLocaleString()}`);
-  rows.push("");
-  rows.push("Category-wise Expenditure");
-  rows.push("Category,Amount (₹)");
-  for (const [cat, amt] of Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])) {
-    rows.push(`"${cat}",${amt}`);
-  }
-
-  return rows.join("\n");
-}
-
 export default function TransactionHistory({ onChanged }: { onChanged: () => void }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -162,16 +113,6 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
     finally { setDeletingId(null); }
   };
 
-  const downloadCSV = () => {
-    const csv = generateCSV(transactions, accounts, month, year);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `expenses_${MONTHS_SHORT[month]}_${year}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
-
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -191,18 +132,9 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-stone-400 font-medium">
-              {transactions.length} transaction{transactions.length !== 1 && "s"}
-            </p>
-            <button onClick={downloadCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download CSV
-            </button>
-          </div>
+          <p className="text-xs text-stone-400 font-medium">
+            {transactions.length} transaction{transactions.length !== 1 && "s"}
+          </p>
 
           {error && editingId && (
             <p className="text-red-600 text-sm text-center bg-red-50 py-2 rounded-lg">{error}</p>
