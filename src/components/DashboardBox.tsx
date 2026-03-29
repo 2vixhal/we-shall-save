@@ -6,7 +6,6 @@ interface DashboardBoxProps {
   color: "terracotta" | "sage" | "teal" | "clay" | "amber" | "slate";
   isActive: boolean;
   onClick: () => void;
-  children: React.ReactNode;
 }
 
 const colorMap = {
@@ -48,29 +47,18 @@ export default function DashboardBox({
   color,
   isActive,
   onClick,
-  children,
 }: DashboardBoxProps) {
   const colors = colorMap[color];
 
   return (
-    <div className="flex flex-col">
-      <button
-        onClick={onClick}
-        className={`${colors.bg} ${colors.hover} ${
-          isActive ? `ring-4 ${colors.ring} scale-[1.02]` : ""
-        } text-white rounded-2xl p-7 shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[160px] w-full`}
-      >
-        <div className="mb-2 opacity-90">{icon}</div>
-        <h2 className="text-lg font-bold text-center tracking-wide">{title}</h2>
-      </button>
-
-      {isActive && (
-        <div className="mt-4 animate-[fadeIn_0.3s_ease-in-out]">
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-stone-200/60">
-            {children}
-          </div>
-        </div>
-      )}
-    </div>
+    <button
+      onClick={onClick}
+      className={`${colors.bg} ${colors.hover} ${
+        isActive ? `ring-4 ${colors.ring} scale-[1.02]` : ""
+      } text-white rounded-2xl p-5 lg:p-7 shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[120px] lg:min-h-[150px] w-full`}
+    >
+      <div className="mb-2 opacity-90">{icon}</div>
+      <h2 className="text-sm lg:text-base font-bold text-center tracking-wide leading-tight">{title}</h2>
+    </button>
   );
 }

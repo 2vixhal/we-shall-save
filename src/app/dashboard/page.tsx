@@ -13,6 +13,15 @@ import LendingTracker from "@/components/LendingTracker";
 
 type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | "investments" | "lending" | null;
 
+const SECTION_TITLES: Record<Exclude<ActiveSection, null>, string> = {
+  "debit-credit": "Add Debit / Credit",
+  "check-balance": "Check Balance",
+  "create-account": "Create New Account",
+  "transactions": "Transaction History",
+  "investments": "Investment Tracker",
+  "lending": "Lending Tracker",
+};
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -46,6 +55,25 @@ export default function DashboardPage() {
 
   if (!session) return null;
 
+  const renderContent = () => {
+    switch (activeSection) {
+      case "debit-credit":
+        return <DebitCreditForm key={`debit-${refreshKey}`} onSaved={handleDataChanged} />;
+      case "check-balance":
+        return <CheckBalance key={`balance-${refreshKey}`} />;
+      case "create-account":
+        return <CreateAccount onCreated={handleDataChanged} />;
+      case "transactions":
+        return <TransactionHistory key={`txn-${refreshKey}`} onChanged={handleDataChanged} />;
+      case "investments":
+        return <InvestmentTracker key={`inv-${refreshKey}`} onChanged={handleDataChanged} />;
+      case "lending":
+        return <LendingTracker key={`lend-${refreshKey}`} onChanged={handleDataChanged} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="bg-white border-b border-stone-200/80">
@@ -70,91 +98,87 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
           <DashboardBox
-            title="Add Debit / Credit" color="terracotta"
+            title="Debit / Credit" color="terracotta"
             isActive={activeSection === "debit-credit"}
             onClick={() => handleToggle("debit-credit")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             }
-          >
-            <DebitCreditForm key={`debit-${refreshKey}`} onSaved={handleDataChanged} />
-          </DashboardBox>
-
+          />
           <DashboardBox
-            title="Check Balance" color="sage"
+            title="Balance" color="sage"
             isActive={activeSection === "check-balance"}
             onClick={() => handleToggle("check-balance")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             }
-          >
-            <CheckBalance key={`balance-${refreshKey}`} />
-          </DashboardBox>
-
+          />
           <DashboardBox
             title="New Account" color="teal"
             isActive={activeSection === "create-account"}
             onClick={() => handleToggle("create-account")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             }
-          >
-            <CreateAccount onCreated={handleDataChanged} />
-          </DashboardBox>
-
+          />
           <DashboardBox
             title="Transactions" color="clay"
             isActive={activeSection === "transactions"}
             onClick={() => handleToggle("transactions")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
             }
-          >
-            <TransactionHistory key={`txn-${refreshKey}`} onChanged={handleDataChanged} />
-          </DashboardBox>
-
+          />
           <DashboardBox
             title="Investments" color="amber"
             isActive={activeSection === "investments"}
             onClick={() => handleToggle("investments")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             }
-          >
-            <InvestmentTracker key={`inv-${refreshKey}`} onChanged={handleDataChanged} />
-          </DashboardBox>
-
+          />
           <DashboardBox
             title="Lending" color="slate"
             isActive={activeSection === "lending"}
             onClick={() => handleToggle("lending")}
             icon={
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             }
-          >
-            <LendingTracker key={`lend-${refreshKey}`} onChanged={handleDataChanged} />
-          </DashboardBox>
+          />
         </div>
+
+        {activeSection && (
+          <div className="mt-6 animate-[fadeIn_0.3s_ease-in-out]">
+            <div className="bg-white rounded-2xl shadow-md border border-stone-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+                <h3 className="text-base font-bold text-stone-800">{SECTION_TITLES[activeSection]}</h3>
+              </div>
+              <div className="p-6">
+                {renderContent()}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
