@@ -9,6 +9,7 @@ export interface ITransaction {
   receivedFrom?: string;
   accountId: mongoose.Types.ObjectId;
   date: Date;
+  note?: string;
   salaryMonth?: string;
   createdAt: Date;
 }
@@ -26,6 +27,7 @@ const TransactionSchema = new Schema<ITransaction>(
       required: true,
     },
     date: { type: Date, default: Date.now },
+    note: { type: String },
     salaryMonth: { type: String },
   },
   { timestamps: true }

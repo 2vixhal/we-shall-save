@@ -11,6 +11,7 @@ interface TransactionItem {
   amount: number;
   category?: string;
   receivedFrom?: string;
+  note?: string;
   salaryMonth?: string;
   accountId: { _id: string; name: string } | string;
   date: string;
@@ -18,10 +19,10 @@ interface TransactionItem {
 }
 
 const CATEGORIES = [
-  "Dadi", "Vedika", "Mammi", "Papa", "Transport", "Petrol",
+  "Dadi", "Vedika", "Mammi", "Papa", "Family", "Transport", "Petrol",
   "Recharges", "Outside Eating", "Lent", "Protein",
   "Recreational Activity", "Food", "Shopping", "Bills",
-  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Other",
+  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
 ];
 
 export default function TransactionHistory({ onChanged }: { onChanged: () => void }) {
@@ -34,7 +35,7 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     type: "debit" as "debit" | "credit", amount: "", category: "",
-    customCategory: "", receivedFrom: "", accountId: "", date: "",
+    customCategory: "", receivedFrom: "", accountId: "", date: "", note: "",
   });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
       customCategory: tx.type === "debit" && !isPreset ? tx.category || "" : "",
       receivedFrom: tx.receivedFrom || "", accountId: getAccountId(tx.accountId),
       date: tx.date ? new Date(tx.date).toISOString().split("T")[0] : "",
+      note: tx.note || "",
     });
     setError("");
   };
@@ -95,6 +97,7 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
           category: finalCategory,
           receivedFrom: editForm.type === "credit" ? editForm.receivedFrom.trim() : undefined,
           accountId: editForm.accountId, date: editForm.date || undefined,
+          note: editForm.note.trim() || undefined,
         }),
       });
       if (!res.ok) { const data = await res.json(); setError(data.error || "Failed to update"); return; }
@@ -177,6 +180,8 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
                     {accounts.map((acc) => <option key={acc._id} value={acc._id}>{acc.name}</option>)}
                   </select>
                   <input type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} className={inputClass} />
+                  <input type="text" value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))}
+                    placeholder="Note (optional)" className={inputClass} />
                   <div className="flex gap-2">
                     <button onClick={() => { setEditingId(null); setError(""); }}
                       className="flex-1 py-2 border border-stone-300 text-stone-600 text-xs font-bold rounded-lg hover:bg-stone-100 cursor-pointer">Cancel</button>
@@ -205,6 +210,7 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
                         {tx.salaryMonth && ` (${tx.salaryMonth})`}
                         {" "}&middot; {getAccountName(tx.accountId)}
                       </p>
+                      {tx.note && <p className="text-xs text-amber-600 dark:text-amber-400 truncate">📝 {tx.note}</p>}
                       <p className="text-xs text-stone-400">{formatDate(tx.date || tx.createdAt)}</p>
                     </div>
                   </div>

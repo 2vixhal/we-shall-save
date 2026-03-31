@@ -3,6 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 import DashboardBox from "@/components/DashboardBox";
 import DebitCreditForm from "@/components/DebitCreditForm";
 import CheckBalance from "@/components/CheckBalance";
@@ -25,6 +26,7 @@ const SECTION_TITLES: Record<Exclude<ActiveSection, null>, string> = {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { theme, toggle } = useTheme();
   const [activeSection, setActiveSection] = useState<ActiveSection>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -47,7 +49,7 @@ export default function DashboardPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-900">
         <div className="text-stone-400 text-sm">Loading...</div>
       </div>
     );
@@ -75,103 +77,64 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-200/80">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 transition-colors">
+      <header className="bg-white dark:bg-stone-800 border-b border-stone-200/80 dark:border-stone-700">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-800 flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 rounded-xl bg-stone-800 dark:bg-amber-700 flex items-center justify-center shadow-sm">
+              <svg className="w-5 h-5 text-amber-400 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-stone-800 tracking-tight">Finance Tracker</h1>
-              <p className="text-xs text-stone-500">Welcome, {session.user.name}</p>
+              <h1 className="text-lg font-bold text-stone-800 dark:text-stone-100 tracking-tight">Finance Tracker</h1>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Welcome, {session.user.name}</p>
             </div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-xs text-stone-500 hover:text-red-600 font-semibold transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-red-50">
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={toggle}
+              className="p-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer text-stone-500 dark:text-stone-400"
+              title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
+              {theme === "light" ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
+            </button>
+            <button onClick={() => signOut({ callbackUrl: "/" })}
+              className="text-xs text-stone-500 hover:text-red-600 dark:text-stone-400 dark:hover:text-red-400 font-semibold transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
-          <DashboardBox
-            title="Debit / Credit" color="terracotta"
-            isActive={activeSection === "debit-credit"}
-            onClick={() => handleToggle("debit-credit")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            }
-          />
-          <DashboardBox
-            title="Balance" color="sage"
-            isActive={activeSection === "check-balance"}
-            onClick={() => handleToggle("check-balance")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            }
-          />
-          <DashboardBox
-            title="New Account" color="teal"
-            isActive={activeSection === "create-account"}
-            onClick={() => handleToggle("create-account")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            }
-          />
-          <DashboardBox
-            title="Transactions" color="clay"
-            isActive={activeSection === "transactions"}
-            onClick={() => handleToggle("transactions")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-            }
-          />
-          <DashboardBox
-            title="Investments" color="amber"
-            isActive={activeSection === "investments"}
-            onClick={() => handleToggle("investments")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            }
-          />
-          <DashboardBox
-            title="Lending" color="slate"
-            isActive={activeSection === "lending"}
-            onClick={() => handleToggle("lending")}
-            icon={
-              <svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            }
-          />
+          <DashboardBox title="Debit / Credit" color="terracotta" isActive={activeSection === "debit-credit"} onClick={() => handleToggle("debit-credit")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
+          <DashboardBox title="Balance" color="sage" isActive={activeSection === "check-balance"} onClick={() => handleToggle("check-balance")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>} />
+          <DashboardBox title="New Account" color="teal" isActive={activeSection === "create-account"} onClick={() => handleToggle("create-account")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>} />
+          <DashboardBox title="Transactions" color="clay" isActive={activeSection === "transactions"} onClick={() => handleToggle("transactions")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>} />
+          <DashboardBox title="Investments" color="amber" isActive={activeSection === "investments"} onClick={() => handleToggle("investments")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
+          <DashboardBox title="Lending" color="slate" isActive={activeSection === "lending"} onClick={() => handleToggle("lending")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
         </div>
 
         {activeSection && (
           <div className="mt-6 animate-[fadeIn_0.3s_ease-in-out]">
-            <div className="bg-white rounded-2xl shadow-md border border-stone-200/60 overflow-hidden">
-              <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/50">
-                <h3 className="text-base font-bold text-stone-800">{SECTION_TITLES[activeSection]}</h3>
+            <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-md border border-stone-200/60 dark:border-stone-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/50">
+                <h3 className="text-base font-bold text-stone-800 dark:text-stone-100">{SECTION_TITLES[activeSection]}</h3>
               </div>
               <div className="p-6">
                 {renderContent()}

@@ -12,7 +12,7 @@ interface LendingItem {
   date: string;
 }
 
-const DEFAULT_FRIENDS = ["Devansh", "Aryan", "Aryamann"];
+// Friends are fetched dynamically per user — no hardcoded defaults
 
 export default function LendingTracker({ onChanged }: { onChanged: () => void }) {
   const [mode, setMode] = useState<"lent" | "gotback">("lent");
@@ -39,8 +39,7 @@ export default function LendingTracker({ onChanged }: { onChanged: () => void })
     const res = await fetch("/api/lendings/friends");
     if (res.ok) {
       const data: string[] = await res.json();
-      const merged = [...new Set([...DEFAULT_FRIENDS, ...data])];
-      setSavedFriends(merged);
+      setSavedFriends(data);
     }
   };
 

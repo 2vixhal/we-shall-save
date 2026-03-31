@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { type, amount, category, receivedFrom, accountId, date } =
+  const { type, amount, category, receivedFrom, accountId, date, note } =
     await req.json();
 
   if (!type || !amount || !accountId) {
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     receivedFrom: type === "credit" ? receivedFrom : undefined,
     accountId,
     date: date ? new Date(date) : new Date(),
+    note: note?.trim() || undefined,
   });
 
   if (type === "debit") {

@@ -5,10 +5,10 @@ import { useState, useEffect } from "react";
 interface Account { _id: string; name: string; balance: number; }
 
 const CATEGORIES = [
-  "Dadi", "Vedika", "Mammi", "Papa", "Transport", "Petrol",
+  "Dadi", "Vedika", "Mammi", "Papa", "Family", "Transport", "Petrol",
   "Recharges", "Outside Eating", "Lent", "Protein",
   "Recreational Activity", "Food", "Shopping", "Bills",
-  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Other",
+  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
 ];
 
 export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
@@ -19,19 +19,27 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   const [receivedFrom, setReceivedFrom] = useState("");
   const [accountId, setAccountId] = useState("");
   const [date, setDate] = useState("");
+  const [note, setNote] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [familyNames, setFamilyNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => { fetchAccounts(); }, []);
+  useEffect(() => { fetchAccounts(); fetchFamilyNames(); }, []);
+
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
     if (res.ok) setAccounts(await res.json());
   };
 
+  const fetchFamilyNames = async () => {
+    const res = await fetch("/api/transactions/family-names");
+    if (res.ok) setFamilyNames(await res.json());
+  };
+
   const handleDiscard = () => {
-    setAmount(""); setCategory(""); setCustomCategory("");
+    setAmount(""); setCategory(""); setCustomCategory(""); setNote("");
     setReceivedFrom(""); setAccountId(""); setDate(""); setError(""); setSuccess("");
   };
 
@@ -54,27 +62,31 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
           receivedFrom: mode === "credit" ? receivedFrom : undefined,
           accountId,
           date: date || undefined,
+          note: note.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to save"); }
-      else { setSuccess(`${mode === "debit" ? "Debit" : "Credit"} of ₹${amount} saved!`); handleDiscard(); fetchAccounts(); onSaved(); }
+      else {
+        setSuccess(`${mode === "debit" ? "Debit" : "Credit"} of ₹${amount} saved!`);
+        handleDiscard(); fetchAccounts(); fetchFamilyNames(); onSaved();
+      }
     } catch { setError("Something went wrong"); }
     finally { setLoading(false); }
   };
 
-  const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white text-sm";
-  const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5";
+  const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white text-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:focus:ring-amber-400/50";
+  const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400";
 
   return (
     <div>
-      <div className="flex bg-stone-100 rounded-xl p-1 mb-5">
+      <div className="flex bg-stone-100 dark:bg-stone-700 rounded-xl p-1 mb-5">
         <button onClick={() => { setMode("debit"); setError(""); setSuccess(""); }}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${mode === "debit" ? "bg-red-600 text-white shadow" : "text-stone-500 hover:text-stone-700"}`}>
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${mode === "debit" ? "bg-red-600 text-white shadow" : "text-stone-500 hover:text-stone-700 dark:text-stone-400"}`}>
           Debit
         </button>
         <button onClick={() => { setMode("credit"); setError(""); setSuccess(""); }}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${mode === "credit" ? "bg-emerald-600 text-white shadow" : "text-stone-500 hover:text-stone-700"}`}>
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer ${mode === "credit" ? "bg-emerald-600 text-white shadow" : "text-stone-500 hover:text-stone-700 dark:text-stone-400"}`}>
           Credit
         </button>
       </div>
@@ -103,6 +115,23 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
               placeholder="e.g. Freelance, Friend, Refund" className={inputClass} />
           </div>
         )}
+        {mode === "debit" && (
+          <div>
+            <label className={labelClass}>Note (optional)</label>
+            {category === "Family" && familyNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {familyNames.map((n) => (
+                  <button key={n} onClick={() => setNote(n)} type="button"
+                    className={`px-3 py-1 text-xs rounded-full transition-all cursor-pointer ${note === n ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder={category === "Family" ? "e.g. Person's name" : "e.g. Quick note about this expense"} className={inputClass} />
+          </div>
+        )}
         <div>
           <label className={labelClass}>Account</label>
           {accounts.length === 0 ? (
@@ -116,16 +145,16 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div>
           <label className={labelClass}>Date (optional)</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:light]`} />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:light] dark:[color-scheme:dark]`} />
           <p className="text-xs text-stone-400 mt-1">Leave empty for today</p>
         </div>
-        {error && <p className="text-red-600 text-sm text-center bg-red-50 py-2 rounded-lg">{error}</p>}
-        {success && <p className="text-emerald-700 text-sm text-center bg-emerald-50 py-2 rounded-lg">{success}</p>}
+        {error && <p className="text-red-600 text-sm text-center bg-red-50 dark:bg-red-900/30 py-2 rounded-lg">{error}</p>}
+        {success && <p className="text-emerald-700 text-sm text-center bg-emerald-50 dark:bg-emerald-900/30 py-2 rounded-lg">{success}</p>}
         <div className="flex gap-3 pt-1">
           <button onClick={handleDiscard}
-            className="flex-1 py-2.5 border-2 border-stone-300 text-stone-600 text-sm font-bold rounded-xl hover:bg-stone-50 transition-colors cursor-pointer">Discard</button>
+            className="flex-1 py-2.5 border-2 border-stone-300 text-stone-600 text-sm font-bold rounded-xl hover:bg-stone-50 transition-colors cursor-pointer dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">Discard</button>
           <button onClick={handleSave} disabled={loading}
-            className="flex-1 py-2.5 bg-stone-800 text-white text-sm font-bold rounded-xl hover:bg-stone-900 transition-colors disabled:opacity-50 cursor-pointer">
+            className="flex-1 py-2.5 bg-stone-800 text-white text-sm font-bold rounded-xl hover:bg-stone-900 transition-colors disabled:opacity-50 cursor-pointer dark:bg-amber-700 dark:hover:bg-amber-800">
             {loading ? "Saving..." : "Save"}
           </button>
         </div>

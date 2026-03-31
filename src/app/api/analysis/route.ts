@@ -32,11 +32,12 @@ export async function GET(req: NextRequest) {
     ],
   };
 
-  const [monthlyDebits, monthlyInvestments, monthlyLendings, accounts] =
+  const [monthlyDebits, monthlyInvestments, monthlyLent, monthlyGotBack, accounts] =
     await Promise.all([
       Transaction.find({ userId: session.user.id, type: "debit", ...txDateFilter }),
       Investment.find({ userId: session.user.id, date: dateRange }),
       Lending.find({ userId: session.user.id, type: "lent", date: dateRange }),
+      Lending.find({ userId: session.user.id, type: "gotback", date: dateRange }),
       DepositAccount.find({ userId: session.user.id }),
     ]);
 
@@ -52,8 +53,10 @@ export async function GET(req: NextRequest) {
   const totalInvested = monthlyInvestments.reduce((s, i) => s + i.amount, 0);
   if (totalInvested > 0) categoryBreakdown["Investment"] = totalInvested;
 
-  const totalLent = monthlyLendings.reduce((s, l) => s + l.amount, 0);
-  if (totalLent > 0) categoryBreakdown["Lent"] = totalLent;
+  const totalLent = monthlyLent.reduce((s, l) => s + l.amount, 0);
+  const totalGotBack = monthlyGotBack.reduce((s, l) => s + l.amount, 0);
+  const netLending = totalLent - totalGotBack;
+  if (netLending > 0) categoryBreakdown["Lent"] = netLending;
 
   const totalSpent = Object.values(categoryBreakdown).reduce((s, v) => s + v, 0);
 
