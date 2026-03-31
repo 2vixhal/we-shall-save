@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
   const monthParam = searchParams.get("month");
   const yearParam = searchParams.get("year");
 
+  const accountParam = searchParams.get("accountId");
+
   const query: Record<string, unknown> = { userId: session.user.id };
+  if (accountParam) query.accountId = accountParam;
 
   if (monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);

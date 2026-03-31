@@ -14,8 +14,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const friend = searchParams.get("friend");
 
+  const accountParam = searchParams.get("accountId");
+
   const query: Record<string, unknown> = { userId: session.user.id };
   if (friend) query.friend = friend;
+  if (accountParam) query.accountId = accountParam;
 
   const lendings = await Lending.find(query)
     .populate("accountId", "name")
