@@ -74,7 +74,7 @@ function generateCSV(transactions: TransactionItem[], categories: CategoryData[]
   return rows.join("\n");
 }
 
-export default function SpendingAnalysis({ month, year }: { month: number; year: number }) {
+export default function SpendingAnalysis({ month, year, accountId }: { month: number; year: number; accountId?: string }) {
   const [data, setData] = useState<AnalysisData | null>(null);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,10 +84,11 @@ export default function SpendingAnalysis({ month, year }: { month: number; year:
     const fetchAll = async () => {
       setLoading(true);
       setExpandedCategory(null);
+      const accParam = accountId ? `&accountId=${accountId}` : "";
       try {
         const [analysisRes, txRes] = await Promise.all([
-          fetch(`/api/analysis?month=${month}&year=${year}`),
-          fetch(`/api/transactions?month=${month}&year=${year}`),
+          fetch(`/api/analysis?month=${month}&year=${year}${accParam}`),
+          fetch(`/api/transactions?month=${month}&year=${year}${accountId ? `&accountId=${accountId}` : ""}`),
         ]);
         if (analysisRes.ok) setData(await analysisRes.json());
         if (txRes.ok) setTransactions(await txRes.json());
@@ -95,7 +96,7 @@ export default function SpendingAnalysis({ month, year }: { month: number; year:
       finally { setLoading(false); }
     };
     fetchAll();
-  }, [month, year]);
+  }, [month, year, accountId]);
 
   const downloadCSV = () => {
     if (!data) return;

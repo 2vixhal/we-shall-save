@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const monthParam = searchParams.get("month");
   const yearParam = searchParams.get("year");
+  const accountIdParam = searchParams.get("accountId");
 
   const now = new Date();
   const m = monthParam !== null ? parseInt(monthParam) : now.getMonth();
@@ -32,16 +33,30 @@ export async function GET(req: NextRequest) {
     ],
   };
 
+  const txQuery: Record<string, unknown> = { userId: session.user.id, type: "debit", ...txDateFilter };
+  const invQuery: Record<string, unknown> = { userId: session.user.id, date: dateRange };
+  const lentQuery: Record<string, unknown> = { userId: session.user.id, type: "lent", date: dateRange };
+  const gotBackQuery: Record<string, unknown> = { userId: session.user.id, type: "gotback", date: dateRange };
+
+  if (accountIdParam) {
+    txQuery.accountId = accountIdParam;
+    invQuery.accountId = accountIdParam;
+    lentQuery.accountId = accountIdParam;
+    gotBackQuery.accountId = accountIdParam;
+  }
+
   const [monthlyDebits, monthlyInvestments, monthlyLent, monthlyGotBack, accounts] =
     await Promise.all([
-      Transaction.find({ userId: session.user.id, type: "debit", ...txDateFilter }),
-      Investment.find({ userId: session.user.id, date: dateRange }),
-      Lending.find({ userId: session.user.id, type: "lent", date: dateRange }),
-      Lending.find({ userId: session.user.id, type: "gotback", date: dateRange }),
+      Transaction.find(txQuery),
+      Investment.find(invQuery),
+      Lending.find(lentQuery),
+      Lending.find(gotBackQuery),
       DepositAccount.find({ userId: session.user.id }),
     ]);
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+  const totalBalance = accountIdParam
+    ? (accounts.find((a) => a._id.toString() === accountIdParam)?.balance ?? 0)
+    : accounts.reduce((sum, acc) => sum + acc.balance, 0);
 
   const categoryBreakdown: Record<string, number> = {};
 

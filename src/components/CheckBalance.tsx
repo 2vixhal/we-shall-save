@@ -51,6 +51,7 @@ export default function CheckBalance() {
   const [accounts, setAccounts] = useState<AccountDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisAccId, setAnalysisAccId] = useState("");
   const [expandedAccId, setExpandedAccId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("transactions");
   const [accTxns, setAccTxns] = useState<TxItem[]>([]);
@@ -271,8 +272,18 @@ export default function CheckBalance() {
 
         {showAnalysis && (
           <div className="mt-5 animate-[fadeIn_0.3s_ease-in-out]">
+            <div className="flex items-center gap-3 mb-4">
+              <label className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider whitespace-nowrap">Account:</label>
+              <select value={analysisAccId} onChange={(e) => setAnalysisAccId(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg text-stone-700 dark:text-stone-200 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="">Overall (All Accounts)</option>
+                {accounts.map((acc) => (
+                  <option key={acc._id} value={acc._id}>{acc.name}</option>
+                ))}
+              </select>
+            </div>
             <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
-            <SpendingAnalysis month={month} year={year} />
+            <SpendingAnalysis month={month} year={year} accountId={analysisAccId || undefined} />
           </div>
         )}
       </div>
