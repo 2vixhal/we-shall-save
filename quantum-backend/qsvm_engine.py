@@ -20,17 +20,12 @@ class QuantumSpendingClassifier:
     def __init__(self, n_features: int = 4, reps: int = 2):
         self.n_features = n_features
         self.reps = reps
-        self.scaler = MinMaxScaler(feature_range=(0, np.pi))
 
         self.feature_map = ZZFeatureMap(
             feature_dimension=n_features,
             reps=reps,
             entanglement="linear",
         )
-
-        self.svc = SVC(kernel="precomputed", probability=True)
-        self.training_vectors = None
-        self.is_trained = False
 
     def circuit_metadata(self) -> dict:
         """Return metadata about the quantum circuit used."""
@@ -111,29 +106,39 @@ class QuantumSpendingClassifier:
         median = np.median(totals)
         return (totals > median).astype(int)
 
-    def train(self, features: np.ndarray, labels: np.ndarray) -> dict:
-        X = self.scaler.fit_transform(features)
-        kernel_train = self._quantum_kernel(X)
-        self.svc.fit(kernel_train, labels)
-        self.training_vectors = X
-        self.is_trained = True
+    def train_and_predict(
+        self,
+        hist_features: np.ndarray,
+        labels: np.ndarray,
+        current_features: np.ndarray,
+    ) -> dict:
+        """
+        Train on historical data and predict current month in a single call.
+        This avoids scaler state issues between separate train/predict steps.
+        """
+        scaler = MinMaxScaler(feature_range=(0, np.pi))
 
-        return {
+        all_features = np.vstack([hist_features, current_features])
+        all_scaled = scaler.fit_transform(all_features)
+
+        X_train = all_scaled[: len(hist_features)]
+        X_pred = all_scaled[len(hist_features) :]
+
+        kernel_train = self._quantum_kernel(X_train)
+
+        svc = SVC(kernel="precomputed", probability=True)
+        svc.fit(kernel_train, labels)
+
+        kernel_pred = self._quantum_kernel(X_pred, X_train)
+        preds = svc.predict(kernel_pred)
+        probs = svc.predict_proba(kernel_pred)
+
+        train_info = {
             "status": "trained",
-            "samples": len(X),
+            "samples": len(X_train),
             "kernel_shape": list(kernel_train.shape),
             "kernel_trace": float(np.trace(kernel_train)),
         }
-
-    def predict(self, features: np.ndarray) -> dict:
-        if not self.is_trained:
-            raise RuntimeError("Model not trained yet")
-
-        X = self.scaler.transform(features)
-        kernel_pred = self._quantum_kernel(X, self.training_vectors)
-
-        preds = self.svc.predict(kernel_pred)
-        probs = self.svc.predict_proba(kernel_pred)
 
         results = []
         for i, (pred, prob) in enumerate(zip(preds, probs)):
@@ -149,10 +154,14 @@ class QuantumSpendingClassifier:
                     "high_spending": round(float(prob[1]) * 100, 1) if len(prob) > 1 else 0,
                 },
                 "features_used": {
-                    "total_spent": float(features[i][0]),
-                    "transaction_count": int(features[i][1]),
-                    "category_diversity": int(features[i][2]),
-                    "concentration_ratio": round(float(features[i][3]), 3),
+                    "total_spent": float(current_features[i][0]),
+                    "transaction_count": int(current_features[i][1]),
+                    "category_diversity": int(current_features[i][2]),
+                    "concentration_ratio": round(float(current_features[i][3]), 3),
                 },
             })
-        return results[0] if len(results) == 1 else results
+
+        return {
+            "prediction": results[0] if len(results) == 1 else results,
+            "training": train_info,
+        }

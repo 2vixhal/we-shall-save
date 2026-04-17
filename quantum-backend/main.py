@@ -21,8 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-user_models: dict[str, QuantumSpendingClassifier] = {}
-
 
 class Transaction(BaseModel):
     type: str
@@ -70,6 +68,14 @@ def analyze(req: AnalyzeRequest):
         clf = QuantumSpendingClassifier(n_features=4, reps=2)
 
         hist_features = clf.extract_features(historical)
+        curr_features = clf.extract_features([current])
+
+        if hist_features.shape[0] < 3:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only {hist_features.shape[0]} historical months found, need at least 3.",
+            )
+
         labels = clf.generate_labels(hist_features)
 
         if len(set(labels)) < 2:
@@ -77,17 +83,13 @@ def analyze(req: AnalyzeRequest):
             labels[:mid] = 0
             labels[mid:] = 1
 
-        train_info = clf.train(hist_features, labels)
-        user_models[req.userId] = clf
-
-        curr_features = clf.extract_features([current])
-        prediction = clf.predict(curr_features)
+        result = clf.train_and_predict(hist_features, labels, curr_features)
 
         meta = clf.circuit_metadata()
 
         return {
-            "prediction": prediction,
-            "training": train_info,
+            "prediction": result["prediction"],
+            "training": result["training"],
             "circuit": meta,
             "historicalMonths": len(req.monthlyData),
             "method": "QSVM (Quantum Support Vector Machine)",
