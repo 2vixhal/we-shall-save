@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import MonthSelector from "./MonthSelector";
 import SpendingAnalysis from "./SpendingAnalysis";
+import QuantumAnalysis from "./QuantumAnalysis";
 
 interface AccountDetail {
   _id: string;
@@ -284,6 +285,7 @@ export default function CheckBalance() {
             </div>
             <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
             <SpendingAnalysis month={month} year={year} accountId={analysisAccId || undefined} />
+            <QuantumAnalysis />
           </div>
         )}
       </div>
