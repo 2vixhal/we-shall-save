@@ -49,9 +49,9 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const salaryAccounts = accounts.filter((a) => a.source === "Salary");
-  const totalSalary = salaryAccounts.reduce((s, a) => s + a.originalTotal, 0);
+  const totalSalary = salaryAccounts.reduce((s, a) => s + a.originalTotal + a.totalCredited, 0);
   const allowanceAccounts = accounts.filter((a) => a.source === "Allowance");
-  const totalAllowance = allowanceAccounts.reduce((s, a) => s + a.originalTotal, 0);
+  const totalAllowance = allowanceAccounts.reduce((s, a) => s + a.originalTotal + a.totalCredited, 0);
 
   const handleCreate = async () => {
     setError(""); setSuccess("");
@@ -169,7 +169,7 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {salaryAccounts.map((a) => (
                   <span key={a._id} className="text-[10px] bg-emerald-600/40 px-2 py-0.5 rounded-full">
-                    {a.sourceMonth || a.name}: ₹{a.originalTotal.toLocaleString()}
+                    {a.sourceMonth || a.name}: ₹{(a.originalTotal + a.totalCredited).toLocaleString()}
                   </span>
                 ))}
               </div>
@@ -182,7 +182,7 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {allowanceAccounts.map((a) => (
                   <span key={a._id} className="text-[10px] bg-blue-600/40 px-2 py-0.5 rounded-full">
-                    {a.sourceMonth || a.name}: ₹{a.originalTotal.toLocaleString()}
+                    {a.sourceMonth || a.name}: ₹{(a.originalTotal + a.totalCredited).toLocaleString()}
                   </span>
                 ))}
               </div>
