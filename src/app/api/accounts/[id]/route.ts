@@ -12,7 +12,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { name, balance } = await req.json();
+  const { name, balance, source, sourceMonth } = await req.json();
 
   await connectDB();
 
@@ -28,6 +28,9 @@ export async function PUT(
       return NextResponse.json({ error: "Balance must be a non-negative number" }, { status: 400 });
     account.balance = newBal;
   }
+
+  if (source !== undefined) account.source = source || undefined;
+  if (sourceMonth !== undefined) account.sourceMonth = sourceMonth || undefined;
 
   await account.save();
   return NextResponse.json(account);
