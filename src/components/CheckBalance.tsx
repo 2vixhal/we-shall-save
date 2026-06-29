@@ -61,6 +61,7 @@ export default function CheckBalance() {
   const [loading, setLoading] = useState(true);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisAccId, setAnalysisAccId] = useState("");
+  const [viewMode, setViewMode] = useState<"month" | "year" | "all">("month");
   const [expandedAccId, setExpandedAccId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("transactions");
   const [accTxns, setAccTxns] = useState<TxItem[]>([]);
@@ -321,8 +322,29 @@ export default function CheckBalance() {
                 ))}
               </select>
             </div>
-            <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
-            <SpendingAnalysis month={month} year={year} accountId={analysisAccId || undefined} />
+            <div className="flex bg-stone-100 dark:bg-stone-700 rounded-xl p-1 mb-4">
+              {(["month", "year", "all"] as const).map((v) => (
+                <button key={v} onClick={() => setViewMode(v)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${viewMode === v ? "bg-amber-700 text-white shadow" : "text-stone-500 dark:text-stone-400"}`}>
+                  {v === "month" ? "Monthly" : v === "year" ? "Yearly" : "All Time"}
+                </button>
+              ))}
+            </div>
+            {viewMode === "month" && (
+              <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+            )}
+            {viewMode === "year" && (
+              <div className="flex items-center justify-center gap-4 mb-5">
+                <button onClick={() => setYear(year - 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-lg font-bold text-stone-700 dark:text-stone-200 tabular-nums">{year}</span>
+                <button onClick={() => setYear(year + 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            )}
+            <SpendingAnalysis month={month} year={year} accountId={analysisAccId || undefined} viewMode={viewMode} />
           </div>
         )}
       </div>

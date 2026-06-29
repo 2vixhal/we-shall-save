@@ -74,7 +74,7 @@ function generateCSV(transactions: TransactionItem[], categories: CategoryData[]
   return rows.join("\n");
 }
 
-export default function SpendingAnalysis({ month, year, accountId }: { month: number; year: number; accountId?: string }) {
+export default function SpendingAnalysis({ month, year, accountId, viewMode = "month" }: { month: number; year: number; accountId?: string; viewMode?: "month" | "year" | "all" }) {
   const [data, setData] = useState<AnalysisData | null>(null);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,10 +85,12 @@ export default function SpendingAnalysis({ month, year, accountId }: { month: nu
       setLoading(true);
       setExpandedCategory(null);
       const accParam = accountId ? `&accountId=${accountId}` : "";
+      const viewParam = `&view=${viewMode}`;
+      const dateParams = viewMode === "all" ? "" : viewMode === "year" ? `&year=${year}` : `&month=${month}&year=${year}`;
       try {
         const [analysisRes, txRes] = await Promise.all([
-          fetch(`/api/analysis?month=${month}&year=${year}${accParam}`),
-          fetch(`/api/transactions?month=${month}&year=${year}${accountId ? `&accountId=${accountId}` : ""}`),
+          fetch(`/api/analysis?${dateParams}${accParam}${viewParam}`),
+          fetch(`/api/transactions?${dateParams}${accParam ? `&accountId=${accountId}` : ""}${viewParam}`),
         ]);
         if (analysisRes.ok) setData(await analysisRes.json());
         if (txRes.ok) setTransactions(await txRes.json());
@@ -96,7 +98,7 @@ export default function SpendingAnalysis({ month, year, accountId }: { month: nu
       finally { setLoading(false); }
     };
     fetchAll();
-  }, [month, year, accountId]);
+  }, [month, year, accountId, viewMode]);
 
   const downloadCSV = () => {
     if (!data) return;
@@ -122,7 +124,7 @@ export default function SpendingAnalysis({ month, year, accountId }: { month: nu
     <div className="pt-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-stone-700 dark:text-stone-200">
-          {MONTHS_SHORT[month]} {year} — Expense Breakdown
+          {viewMode === "all" ? "All Time" : viewMode === "year" ? `${year}` : `${MONTHS_SHORT[month]} ${year}`} — Expense Breakdown
         </h3>
         {data.categories.length > 0 && (
           <button onClick={downloadCSV}

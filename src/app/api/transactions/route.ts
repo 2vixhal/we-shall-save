@@ -15,18 +15,25 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const monthParam = searchParams.get("month");
   const yearParam = searchParams.get("year");
+  const view = searchParams.get("view") || "month";
 
   const accountParam = searchParams.get("accountId");
 
   const query: Record<string, unknown> = { userId: session.user.id };
   if (accountParam) query.accountId = accountParam;
 
-  if (monthParam !== null && yearParam !== null) {
+  if (view === "month" && monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);
     const y = parseInt(yearParam);
-    const start = new Date(y, m, 1);
-    const end = new Date(y, m + 1, 1);
-    const dateRange = { $gte: start, $lt: end };
+    const dateRange = { $gte: new Date(y, m, 1), $lt: new Date(y, m + 1, 1) };
+    query.$or = [
+      { date: dateRange },
+      { date: { $exists: false }, createdAt: dateRange },
+      { date: null, createdAt: dateRange },
+    ];
+  } else if (view === "year" && yearParam !== null) {
+    const y = parseInt(yearParam);
+    const dateRange = { $gte: new Date(y, 0, 1), $lt: new Date(y + 1, 0, 1) };
     query.$or = [
       { date: dateRange },
       { date: { $exists: false }, createdAt: dateRange },

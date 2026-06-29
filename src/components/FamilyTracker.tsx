@@ -30,6 +30,7 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
   const [txns, setTxns] = useState<FamilyTxn[]>([]);
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
+  const [viewMode, setViewMode] = useState<"month" | "year" | "all">("month");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -51,9 +52,10 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
   };
 
   const fetchTxns = useCallback(async () => {
-    const res = await fetch(`/api/family?month=${month}&year=${year}`);
+    const dateParams = viewMode === "all" ? "" : viewMode === "year" ? `month=&year=${year}&view=year` : `month=${month}&year=${year}&view=month`;
+    const res = await fetch(`/api/family?${dateParams}`);
     if (res.ok) setTxns(await res.json());
-  }, [month, year]);
+  }, [month, year, viewMode]);
 
   useEffect(() => { fetchAccounts(); fetchMembers(); }, []);
   useEffect(() => { fetchTxns(); }, [fetchTxns]);
@@ -197,7 +199,28 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
       {/* Monthly history */}
       <div className="border-t border-stone-200 dark:border-stone-700 pt-5">
         <h3 className="text-sm font-bold text-stone-700 dark:text-stone-200 mb-3">Family Transaction History</h3>
-        <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+        <div className="flex bg-stone-100 dark:bg-stone-700 rounded-xl p-1 mb-4">
+          {(["month", "year", "all"] as const).map((v) => (
+            <button key={v} onClick={() => setViewMode(v)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${viewMode === v ? "bg-pink-700 text-white shadow" : "text-stone-500 dark:text-stone-400"}`}>
+              {v === "month" ? "Monthly" : v === "year" ? "Yearly" : "All Time"}
+            </button>
+          ))}
+        </div>
+        {viewMode === "month" && (
+          <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+        )}
+        {viewMode === "year" && (
+          <div className="flex items-center justify-center gap-4 mb-5">
+            <button onClick={() => setYear(year - 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="text-lg font-bold text-stone-700 dark:text-stone-200 tabular-nums">{year}</span>
+            <button onClick={() => setYear(year + 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 my-4">
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-3 text-center">

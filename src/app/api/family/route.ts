@@ -21,10 +21,15 @@ export async function GET(req: NextRequest) {
   if (accountParam) query.accountId = accountParam;
   if (memberParam) query.member = memberParam;
 
-  if (monthParam !== null && yearParam !== null) {
+  const view = searchParams.get("view") || "month";
+
+  if (view === "month" && monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);
     const y = parseInt(yearParam);
     query.date = { $gte: new Date(y, m, 1), $lt: new Date(y, m + 1, 1) };
+  } else if (view === "year" && yearParam !== null) {
+    const y = parseInt(yearParam);
+    query.date = { $gte: new Date(y, 0, 1), $lt: new Date(y + 1, 0, 1) };
   }
 
   const txns = await FamilyTransaction.find(query)
