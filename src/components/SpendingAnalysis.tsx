@@ -5,17 +5,9 @@ import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, PieLabelRenderProps,
 } from "recharts";
 
-interface CategoryData {
-  name: string;
-  amount: number;
-  percentage: number;
-}
-
-interface AnalysisData {
-  totalSpent: number;
-  totalLeft: number;
-  categories: CategoryData[];
-}
+interface SubCategoryData { name: string; amount: number; percentage: number; }
+interface CategoryData { name: string; amount: number; percentage: number; subs: SubCategoryData[]; }
+interface AnalysisData { totalSpent: number; totalLeft: number; categories: CategoryData[]; }
 
 interface TransactionItem {
   _id: string;
@@ -32,7 +24,7 @@ interface TransactionItem {
 const COLORS = [
   "#92400e", "#065f46", "#0f766e", "#78716c",
   "#b45309", "#166534", "#115e59", "#a16207",
-  "#854d0e", "#3f6212",
+  "#854d0e", "#3f6212", "#7c2d12", "#1e3a5f",
 ];
 
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -69,6 +61,9 @@ function generateCSV(transactions: TransactionItem[], categories: CategoryData[]
   rows.push("Category,Amount (₹),Percentage");
   for (const cat of categories) {
     rows.push(`"${cat.name}",${cat.amount},${cat.percentage}%`);
+    for (const sub of cat.subs) {
+      rows.push(`"  ${sub.name}",${sub.amount},${sub.percentage}%`);
+    }
   }
 
   return rows.join("\n");
@@ -78,12 +73,14 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
   const [data, setData] = useState<AnalysisData | null>(null);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
+  const [expandedSub, setExpandedSub] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
-      setExpandedCategory(null);
+      setExpandedCat(null);
+      setExpandedSub(null);
       const accParam = accountId ? `&accountId=${accountId}` : "";
       const viewParam = `&view=${viewMode}`;
       const dateParams = viewMode === "all" ? "" : viewMode === "year" ? `&year=${year}` : `&month=${month}&year=${year}`;
@@ -111,14 +108,19 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
     URL.revokeObjectURL(link.href);
   };
 
-  const getAccName = (accountId: TransactionItem["accountId"]) =>
-    typeof accountId === "object" && accountId?.name ? accountId.name : "Unknown";
+  const getAccName = (aid: TransactionItem["accountId"]) =>
+    typeof aid === "object" && aid?.name ? aid.name : "Unknown";
 
-  const getCategoryTransactions = (catName: string) =>
-    transactions.filter((tx) => tx.type === "debit" && (tx.category || "Other") === catName);
+  const getSubTransactions = (parentCat: string, subName: string) =>
+    transactions.filter((tx) => tx.type === "debit" && tx.category === `${parentCat} - ${subName}`);
+
+  const getDirectTransactions = (parentCat: string) =>
+    transactions.filter((tx) => tx.type === "debit" && tx.category === parentCat);
 
   if (loading) return <div className="text-center py-6 text-stone-400 text-sm">Loading analysis...</div>;
   if (!data) return <div className="text-center py-6 text-stone-400 text-sm">Unable to load analysis</div>;
+
+  const pieData = data.categories.map((c) => ({ name: c.name, amount: c.amount }));
 
   return (
     <div className="pt-4">
@@ -132,7 +134,7 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Download CSV
+            CSV
           </button>
         )}
       </div>
@@ -151,51 +153,98 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
       {data.categories.length > 0 ? (
         <>
           <h4 className="text-xs font-semibold text-stone-500 dark:text-stone-400 mb-2.5 uppercase tracking-wider">
-            Category Breakdown <span className="normal-case font-normal">(tap to expand)</span>
+            Category Breakdown
           </h4>
-          <div className="space-y-1.5 mb-5">
+          <div className="space-y-2 mb-5">
             {data.categories.map((cat, idx) => {
-              const isExpanded = expandedCategory === cat.name;
-              const catTxns = isExpanded ? getCategoryTransactions(cat.name) : [];
+              const isCatOpen = expandedCat === cat.name;
+              const hasSubs = cat.subs.length > 0;
+              const directTxns = getDirectTransactions(cat.name);
+
               return (
-                <div key={cat.name}>
-                  <button onClick={() => setExpandedCategory(isExpanded ? null : cat.name)}
-                    className={`w-full flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-3 border transition-all cursor-pointer ${isExpanded ? "border-amber-300 dark:border-amber-600 ring-1 ring-amber-200 dark:ring-amber-700" : "border-stone-100 dark:border-stone-600 hover:border-stone-200"}`}>
+                <div key={cat.name} className={`rounded-xl border overflow-hidden transition-all ${isCatOpen ? "border-amber-400 dark:border-amber-600" : "border-stone-200 dark:border-stone-700"}`}>
+                  {/* Parent category */}
+                  <button onClick={() => { setExpandedCat(isCatOpen ? null : cat.name); setExpandedSub(null); }}
+                    className={`w-full flex items-center justify-between p-3 cursor-pointer transition-colors ${isCatOpen ? "bg-amber-50 dark:bg-amber-900/15" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700/50"}`}>
                     <div className="flex items-center gap-2.5">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                      <span className="font-medium text-stone-700 dark:text-stone-200 text-sm">{cat.name}</span>
+                      <span className="font-semibold text-stone-700 dark:text-stone-200 text-sm">{cat.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-stone-800 dark:text-stone-100 text-sm">₹{cat.amount.toLocaleString()}</span>
                       <span className="text-stone-400 text-xs">({cat.percentage}%)</span>
-                      <svg className={`w-3.5 h-3.5 text-stone-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-3.5 h-3.5 text-stone-400 transition-transform ${isCatOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
                   </button>
-                  {isExpanded && (
-                    <div className="ml-5 mt-1 mb-2 space-y-1 animate-[fadeIn_0.2s_ease-in-out]">
-                      {cat.name === "Lent" ? (
-                        <p className="text-xs text-stone-400 dark:text-stone-500 italic py-2 pl-2">
-                          View details in the Lending section.
-                        </p>
-                      ) : catTxns.length === 0 ? (
-                        <p className="text-xs text-stone-400 py-2 pl-2">No transactions found.</p>
-                      ) : (
-                        catTxns.map((tx) => (
-                          <div key={tx._id} className="flex items-center justify-between bg-white dark:bg-stone-800 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-red-600 dark:text-red-400">−₹{tx.amount.toLocaleString()}</span>
-                                <span className="text-xs text-stone-400">{getAccName(tx.accountId)}</span>
+
+                  {isCatOpen && (
+                    <div className="border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 animate-[fadeIn_0.2s_ease-in-out]">
+                      {/* Sub-categories */}
+                      {hasSubs && (
+                        <div className="p-2.5 space-y-1.5">
+                          {cat.subs.map((sub) => {
+                            const isSubOpen = expandedSub === `${cat.name}::${sub.name}`;
+                            const subTxns = getSubTransactions(cat.name, sub.name);
+                            return (
+                              <div key={sub.name}>
+                                <button onClick={() => setExpandedSub(isSubOpen ? null : `${cat.name}::${sub.name}`)}
+                                  className={`w-full flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${isSubOpen ? "bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700" : "bg-stone-50 dark:bg-stone-700/50 hover:bg-stone-100 dark:hover:bg-stone-700 border border-transparent"}`}>
+                                  <span className="text-xs font-medium text-stone-600 dark:text-stone-300">{sub.name}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-stone-700 dark:text-stone-200">₹{sub.amount.toLocaleString()}</span>
+                                    <span className="text-[10px] text-stone-400">({sub.percentage}%)</span>
+                                    <svg className={`w-3 h-3 text-stone-400 transition-transform ${isSubOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
+                                </button>
+                                {isSubOpen && (
+                                  <div className="ml-3 mt-1 space-y-1 animate-[fadeIn_0.15s_ease-in-out]">
+                                    {subTxns.length === 0 ? (
+                                      <p className="text-[11px] text-stone-400 py-1.5 pl-2">No transactions.</p>
+                                    ) : subTxns.map((tx) => (
+                                      <div key={tx._id} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/30 rounded-lg p-2 border border-stone-100 dark:border-stone-700">
+                                        <div className="min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-red-600 dark:text-red-400">−₹{tx.amount.toLocaleString()}</span>
+                                            <span className="text-[10px] text-stone-400">{getAccName(tx.accountId)}</span>
+                                          </div>
+                                          {tx.note && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">📝 {tx.note}</p>}
+                                          <p className="text-[10px] text-stone-400 mt-0.5">{new Date(tx.date || tx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              {tx.note && <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">📝 {tx.note}</p>}
-                              <p className="text-[10px] text-stone-400 mt-0.5">
-                                {new Date(tx.date || tx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                              </p>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Direct transactions (no sub-category) */}
+                      {directTxns.length > 0 && (
+                        <div className={`p-2.5 space-y-1 ${hasSubs ? "border-t border-stone-100 dark:border-stone-700" : ""}`}>
+                          {hasSubs && <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mb-1.5">Direct</p>}
+                          {directTxns.map((tx) => (
+                            <div key={tx._id} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/30 rounded-lg p-2 border border-stone-100 dark:border-stone-700">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-red-600 dark:text-red-400">−₹{tx.amount.toLocaleString()}</span>
+                                  <span className="text-[10px] text-stone-400">{getAccName(tx.accountId)}</span>
+                                </div>
+                                {tx.note && <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">📝 {tx.note}</p>}
+                                <p className="text-[10px] text-stone-400 mt-0.5">{new Date(tx.date || tx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          ))}
+                        </div>
+                      )}
+
+                      {!hasSubs && directTxns.length === 0 && (
+                        <p className="text-xs text-stone-400 py-3 text-center">No transactions.</p>
                       )}
                     </div>
                   )}
@@ -207,9 +256,9 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={data.categories} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={90}
+                <Pie data={pieData} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={90}
                   label={(props: PieLabelRenderProps) => `${props.name || ""}`}>
-                  {data.categories.map((_, index) => (
+                  {pieData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -220,7 +269,7 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
           </div>
         </>
       ) : (
-        <p className="text-stone-400 text-center text-sm py-4">No spending data for this month.</p>
+        <p className="text-stone-400 text-center text-sm py-4">No spending data for this period.</p>
       )}
     </div>
   );
