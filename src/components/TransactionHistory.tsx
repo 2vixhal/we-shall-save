@@ -148,6 +148,9 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
     try {
       const accId = typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId;
 
+      const delRes = await fetch(`/api/transactions/${movingId}`, { method: "DELETE" });
+      if (!delRes.ok) { setError("Failed to remove original transaction"); return; }
+
       const createRes = await fetch("/api/family", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,9 +168,6 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
         setError(data.error || "Failed to create family transaction");
         return;
       }
-
-      const delRes = await fetch(`/api/transactions/${movingId}`, { method: "DELETE" });
-      if (!delRes.ok) { setError("Moved to family but failed to remove original"); return; }
 
       setMovingId(null);
       await fetchData();
