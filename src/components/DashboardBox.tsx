@@ -3,7 +3,7 @@
 interface DashboardBoxProps {
   title: string;
   icon: React.ReactNode;
-  color: "terracotta" | "sage" | "teal" | "clay" | "amber" | "slate";
+  color: "terracotta" | "sage" | "teal" | "clay" | "amber" | "slate" | "pink";
   isActive: boolean;
   onClick: () => void;
 }
@@ -38,6 +38,11 @@ const colorMap = {
     bg: "bg-gradient-to-br from-indigo-700 to-indigo-800",
     hover: "hover:from-indigo-800 hover:to-indigo-900",
     ring: "ring-indigo-400/50",
+  },
+  pink: {
+    bg: "bg-gradient-to-br from-pink-700 to-rose-800",
+    hover: "hover:from-pink-800 hover:to-rose-900",
+    ring: "ring-pink-400/50",
   },
 };
 

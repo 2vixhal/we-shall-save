@@ -11,8 +11,9 @@ import CreateAccount from "@/components/CreateAccount";
 import TransactionHistory from "@/components/TransactionHistory";
 import InvestmentTracker from "@/components/InvestmentTracker";
 import LendingTracker from "@/components/LendingTracker";
+import FamilyTracker from "@/components/FamilyTracker";
 
-type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | "investments" | "lending" | null;
+type ActiveSection = "debit-credit" | "check-balance" | "create-account" | "transactions" | "investments" | "lending" | "family" | null;
 
 const SECTION_TITLES: Record<Exclude<ActiveSection, null>, string> = {
   "debit-credit": "Add Debit / Credit",
@@ -21,6 +22,7 @@ const SECTION_TITLES: Record<Exclude<ActiveSection, null>, string> = {
   "transactions": "Transaction History",
   "investments": "Investment Tracker",
   "lending": "Lending Tracker",
+  "family": "Family Transfers",
 };
 
 export default function DashboardPage() {
@@ -71,6 +73,8 @@ export default function DashboardPage() {
         return <InvestmentTracker key={`inv-${refreshKey}`} onChanged={handleDataChanged} />;
       case "lending":
         return <LendingTracker key={`lend-${refreshKey}`} onChanged={handleDataChanged} />;
+      case "family":
+        return <FamilyTracker key={`fam-${refreshKey}`} onChanged={handleDataChanged} />;
       default:
         return null;
     }
@@ -115,7 +119,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
+        <div className="grid grid-cols-4 md:grid-cols-7 gap-3 lg:gap-4">
           <DashboardBox title="Debit / Credit" color="terracotta" isActive={activeSection === "debit-credit"} onClick={() => handleToggle("debit-credit")}
             icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
           <DashboardBox title="Balance" color="sage" isActive={activeSection === "check-balance"} onClick={() => handleToggle("check-balance")}
@@ -128,6 +132,8 @@ export default function DashboardPage() {
             icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
           <DashboardBox title="Lending" color="slate" isActive={activeSection === "lending"} onClick={() => handleToggle("lending")}
             icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
+          <DashboardBox title="Family" color="pink" isActive={activeSection === "family"} onClick={() => handleToggle("family")}
+            icon={<svg className="w-7 h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
         </div>
 
         {activeSection && (

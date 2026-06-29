@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { Transaction } from "@/models/Transaction";
-import { Investment } from "@/models/Investment";
 import { Lending } from "@/models/Lending";
 import { DepositAccount } from "@/models/DepositAccount";
 
@@ -34,21 +33,18 @@ export async function GET(req: NextRequest) {
   };
 
   const txQuery: Record<string, unknown> = { userId: session.user.id, type: "debit", ...txDateFilter };
-  const invQuery: Record<string, unknown> = { userId: session.user.id, date: dateRange };
   const lentQuery: Record<string, unknown> = { userId: session.user.id, type: "lent", date: dateRange };
   const gotBackQuery: Record<string, unknown> = { userId: session.user.id, type: "gotback", date: dateRange };
 
   if (accountIdParam) {
     txQuery.accountId = accountIdParam;
-    invQuery.accountId = accountIdParam;
     lentQuery.accountId = accountIdParam;
     gotBackQuery.accountId = accountIdParam;
   }
 
-  const [monthlyDebits, monthlyInvestments, monthlyLent, monthlyGotBack, accounts] =
+  const [monthlyDebits, monthlyLent, monthlyGotBack, accounts] =
     await Promise.all([
       Transaction.find(txQuery),
-      Investment.find(invQuery),
       Lending.find(lentQuery),
       Lending.find(gotBackQuery),
       DepositAccount.find({ userId: session.user.id }),
@@ -64,9 +60,6 @@ export async function GET(req: NextRequest) {
     const cat = tx.category || "Other";
     categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + tx.amount;
   }
-
-  const totalInvested = monthlyInvestments.reduce((s, i) => s + i.amount, 0);
-  if (totalInvested > 0) categoryBreakdown["Investment"] = totalInvested;
 
   const totalLent = monthlyLent.reduce((s, l) => s + l.amount, 0);
   const totalGotBack = monthlyGotBack.reduce((s, l) => s + l.amount, 0);

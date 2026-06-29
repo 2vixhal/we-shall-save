@@ -5,8 +5,7 @@ import { useState, useEffect } from "react";
 interface Account { _id: string; name: string; balance: number; }
 
 const CATEGORIES = [
-  "Dadi", "Vedika", "Mammi", "Papa", "Family", "Transport", "Petrol",
-  "Recharges", "Outside Eating", "Lent", "Protein",
+  "Transport", "Petrol", "Recharges", "Outside Eating", "Lent", "Protein",
   "Recreational Activity", "Food", "Shopping", "Bills",
   "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
 ];
@@ -21,21 +20,15 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [familyNames, setFamilyNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => { fetchAccounts(); fetchFamilyNames(); }, []);
+  useEffect(() => { fetchAccounts(); }, []);
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
     if (res.ok) setAccounts(await res.json());
-  };
-
-  const fetchFamilyNames = async () => {
-    const res = await fetch("/api/transactions/family-names");
-    if (res.ok) setFamilyNames(await res.json());
   };
 
   const handleDiscard = () => {
@@ -69,7 +62,7 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
       if (!res.ok) { setError(data.error || "Failed to save"); }
       else {
         setSuccess(`${mode === "debit" ? "Debit" : "Credit"} of ₹${amount} saved!`);
-        handleDiscard(); fetchAccounts(); fetchFamilyNames(); onSaved();
+        handleDiscard(); fetchAccounts(); onSaved();
       }
     } catch { setError("Something went wrong"); }
     finally { setLoading(false); }
@@ -118,18 +111,8 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
         {mode === "debit" && (
           <div>
             <label className={labelClass}>Note (optional)</label>
-            {category === "Family" && familyNames.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {familyNames.map((n) => (
-                  <button key={n} onClick={() => setNote(n)} type="button"
-                    className={`px-3 py-1 text-xs rounded-full transition-all cursor-pointer ${note === n ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            )}
             <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder={category === "Family" ? "e.g. Person's name" : "e.g. Quick note about this expense"} className={inputClass} />
+              placeholder="e.g. Quick note about this expense" className={inputClass} />
           </div>
         )}
         <div>

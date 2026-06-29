@@ -173,9 +173,9 @@ export default function SpendingAnalysis({ month, year, accountId }: { month: nu
                   </button>
                   {isExpanded && (
                     <div className="ml-5 mt-1 mb-2 space-y-1 animate-[fadeIn_0.2s_ease-in-out]">
-                      {cat.name === "Investment" || cat.name === "Lent" ? (
+                      {cat.name === "Lent" ? (
                         <p className="text-xs text-stone-400 dark:text-stone-500 italic py-2 pl-2">
-                          View details in the {cat.name === "Investment" ? "Investments" : "Lending"} section.
+                          View details in the Lending section.
                         </p>
                       ) : catTxns.length === 0 ? (
                         <p className="text-xs text-stone-400 py-2 pl-2">No transactions found.</p>

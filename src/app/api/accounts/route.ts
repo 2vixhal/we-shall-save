@@ -5,6 +5,7 @@ import { DepositAccount } from "@/models/DepositAccount";
 import { Transaction } from "@/models/Transaction";
 import { Investment } from "@/models/Investment";
 import { Lending } from "@/models/Lending";
+import { FamilyTransaction } from "@/models/FamilyTransaction";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -25,10 +26,11 @@ export async function GET(req: NextRequest) {
   }
 
   const userId = session.user.id;
-  const [transactions, investments, lendings] = await Promise.all([
+  const [transactions, investments, lendings, familyTxns] = await Promise.all([
     Transaction.find({ userId }),
     Investment.find({ userId }),
     Lending.find({ userId }),
+    FamilyTransaction.find({ userId }),
   ]);
 
   const perAccountDebited: Record<string, number> = {};
@@ -54,6 +56,15 @@ export async function GET(req: NextRequest) {
       perAccountDebited[accId] = (perAccountDebited[accId] || 0) + lend.amount;
     } else {
       perAccountCredited[accId] = (perAccountCredited[accId] || 0) + lend.amount;
+    }
+  }
+
+  for (const ft of familyTxns) {
+    const accId = ft.accountId.toString();
+    if (ft.type === "debit") {
+      perAccountDebited[accId] = (perAccountDebited[accId] || 0) + ft.amount;
+    } else {
+      perAccountCredited[accId] = (perAccountCredited[accId] || 0) + ft.amount;
     }
   }
 

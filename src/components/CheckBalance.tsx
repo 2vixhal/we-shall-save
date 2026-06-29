@@ -42,7 +42,16 @@ interface LendItem {
   date: string;
 }
 
-type TabKey = "transactions" | "investments" | "lending";
+interface FamilyItem {
+  _id: string;
+  type: "debit" | "credit";
+  amount: number;
+  member: string;
+  note?: string;
+  date: string;
+}
+
+type TabKey = "transactions" | "investments" | "lending" | "family";
 
 export default function CheckBalance() {
   const now = new Date();
@@ -57,6 +66,7 @@ export default function CheckBalance() {
   const [accTxns, setAccTxns] = useState<TxItem[]>([]);
   const [accInvs, setAccInvs] = useState<InvItem[]>([]);
   const [accLends, setAccLends] = useState<LendItem[]>([]);
+  const [accFamily, setAccFamily] = useState<FamilyItem[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
@@ -73,14 +83,16 @@ export default function CheckBalance() {
   const fetchAccountData = async (accId: string) => {
     setLoadingData(true);
     try {
-      const [txRes, invRes, lendRes] = await Promise.all([
+      const [txRes, invRes, lendRes, famRes] = await Promise.all([
         fetch(`/api/transactions?accountId=${accId}`),
         fetch(`/api/investments?accountId=${accId}`),
         fetch(`/api/lendings?accountId=${accId}`),
+        fetch(`/api/family?accountId=${accId}`),
       ]);
       if (txRes.ok) setAccTxns(await txRes.json());
       if (invRes.ok) setAccInvs(await invRes.json());
       if (lendRes.ok) setAccLends(await lendRes.json());
+      if (famRes.ok) setAccFamily(await famRes.json());
     } catch { /* silently fail */ }
     finally { setLoadingData(false); }
   };
@@ -106,6 +118,7 @@ export default function CheckBalance() {
     { key: "transactions", label: "Transactions", count: accTxns.length },
     { key: "investments", label: "Investments", count: accInvs.length },
     { key: "lending", label: "Lending", count: accLends.length },
+    { key: "family", label: "Family", count: accFamily.length },
   ];
 
   return (
@@ -245,6 +258,32 @@ export default function CheckBalance() {
                                         </span>
                                       </div>
                                       <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(l.date)}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          )}
+
+                          {/* Family tab */}
+                          {activeTab === "family" && (
+                            accFamily.length === 0 ? (
+                              <p className="text-center text-stone-400 text-sm py-3">No family transfers from this account.</p>
+                            ) : (
+                              <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                                {accFamily.map((f) => (
+                                  <div key={f._id} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-bold ${f.type === "debit" ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                          {f.type === "debit" ? "−" : "+"}₹{f.amount.toLocaleString()}
+                                        </span>
+                                        <span className="text-xs font-medium text-stone-600 dark:text-stone-300 truncate">
+                                          {f.type === "debit" ? `Sent to ${f.member}` : `Received from ${f.member}`}
+                                        </span>
+                                      </div>
+                                      {f.note && <p className="text-[11px] text-pink-600 dark:text-pink-400 truncate mt-0.5">📝 {f.note}</p>}
+                                      <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(f.date)}</p>
                                     </div>
                                   </div>
                                 ))}

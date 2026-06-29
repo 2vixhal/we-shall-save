@@ -19,7 +19,7 @@ interface TransactionItem {
 }
 
 const CATEGORIES = [
-  "Dadi", "Vedika", "Mammi", "Papa", "Family", "Transport", "Petrol",
+  "Transport", "Petrol",
   "Recharges", "Outside Eating", "Lent", "Protein",
   "Recreational Activity", "Food", "Shopping", "Bills",
   "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
