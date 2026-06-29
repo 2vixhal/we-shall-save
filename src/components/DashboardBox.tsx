@@ -60,10 +60,10 @@ export default function DashboardBox({
       onClick={onClick}
       className={`${colors.bg} ${colors.hover} ${
         isActive ? `ring-4 ${colors.ring} scale-[1.02]` : ""
-      } text-white rounded-2xl p-5 lg:p-7 shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[120px] lg:min-h-[150px] w-full`}
+      } text-white rounded-xl sm:rounded-2xl p-3 sm:p-5 lg:p-7 shadow-lg transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[90px] sm:min-h-[120px] lg:min-h-[150px] w-full overflow-hidden`}
     >
-      <div className="mb-2 opacity-90">{icon}</div>
-      <h2 className="text-sm lg:text-base font-bold text-center tracking-wide leading-tight">{title}</h2>
+      <div className="mb-1 sm:mb-2 opacity-90">{icon}</div>
+      <h2 className="text-[10px] sm:text-sm lg:text-base font-bold text-center tracking-wide leading-tight break-words w-full">{title}</h2>
     </button>
   );
 }
