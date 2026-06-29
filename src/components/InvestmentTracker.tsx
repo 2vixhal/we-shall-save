@@ -33,6 +33,7 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [investments, setInvestments] = useState<InvestmentItem[]>([]);
   const [savedSubs, setSavedSubs] = useState<Record<string, string[]>>({});
+  const [savedCustomCats, setSavedCustomCats] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -52,13 +53,18 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
     if (res.ok) setSavedSubs(await res.json());
   };
 
+  const fetchCustomCats = async () => {
+    const res = await fetch("/api/investments/custom-categories");
+    if (res.ok) setSavedCustomCats(await res.json());
+  };
+
   const fetchInvestments = useCallback(async () => {
     const dateParams = viewMode === "all" ? "" : viewMode === "year" ? `&year=${year}` : `&month=${month}&year=${year}`;
     const res = await fetch(`/api/investments?view=${viewMode}${dateParams}`);
     if (res.ok) setInvestments(await res.json());
   }, [month, year, viewMode]);
 
-  useEffect(() => { fetchAccounts(); fetchSubs(); }, []);
+  useEffect(() => { fetchAccounts(); fetchSubs(); fetchCustomCats(); }, []);
   useEffect(() => { if (showHistory) fetchInvestments(); }, [fetchInvestments, showHistory]);
 
   const effectiveCategory = category === "Other" ? customCategory.trim() : category;
@@ -87,7 +93,7 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
       else {
         setSuccess(`₹${amount} invested in ${effectiveCategory}!`);
         setAmount(""); setCategory(""); setCustomCategory(""); setSubCategory(""); setNote(""); setAccountId(""); setDate("");
-        fetchAccounts(); fetchSubs(); onChanged();
+        fetchAccounts(); fetchSubs(); fetchCustomCats(); onChanged();
         if (showHistory) fetchInvestments();
       }
     } catch { setError("Something went wrong"); }
@@ -172,8 +178,20 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
             {INV_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           {category === "Other" && (
-            <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
-              placeholder="e.g. Savings, PPF, NPS" className={`${inputClass} mt-2`} />
+            <div className="mt-2">
+              {savedCustomCats.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {savedCustomCats.map((c) => (
+                    <button key={c} onClick={() => setCustomCategory(c)} type="button"
+                      className={`px-3 py-1 text-xs rounded-full transition-all cursor-pointer ${customCategory === c ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="e.g. Savings, PPF, NPS" className={inputClass} />
+            </div>
           )}
         </div>
         {NEEDS_SUB.includes(category) && (

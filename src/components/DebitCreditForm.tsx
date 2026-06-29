@@ -20,16 +20,27 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [savedCustomCats, setSavedCustomCats] = useState<string[]>([]);
+  const [savedSources, setSavedSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  useEffect(() => { fetchAccounts(); }, []);
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
     if (res.ok) setAccounts(await res.json());
   };
+
+  const fetchSavedData = async () => {
+    const [catRes, srcRes] = await Promise.all([
+      fetch("/api/transactions/custom-categories"),
+      fetch("/api/transactions/credit-sources"),
+    ]);
+    if (catRes.ok) setSavedCustomCats(await catRes.json());
+    if (srcRes.ok) setSavedSources(await srcRes.json());
+  };
+
+  useEffect(() => { fetchAccounts(); fetchSavedData(); }, []);
 
   const handleDiscard = () => {
     setAmount(""); setCategory(""); setCustomCategory(""); setNote("");
@@ -62,11 +73,14 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
       if (!res.ok) { setError(data.error || "Failed to save"); }
       else {
         setSuccess(`${mode === "debit" ? "Debit" : "Credit"} of ₹${amount} saved!`);
-        handleDiscard(); fetchAccounts(); onSaved();
+        handleDiscard(); fetchAccounts(); fetchSavedData(); onSaved();
       }
     } catch { setError("Something went wrong"); }
     finally { setLoading(false); }
   };
+
+  const pillClass = (active: boolean) =>
+    `px-3 py-1 text-xs rounded-full transition-all cursor-pointer ${active ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`;
 
   const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white text-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:focus:ring-amber-400/50";
   const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400";
@@ -97,13 +111,33 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
               {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
             {category === "Other" && (
-              <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
-                placeholder="Type your expense category" className={`${inputClass} mt-2`} />
+              <div className="mt-2">
+                {savedCustomCats.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {savedCustomCats.map((c) => (
+                      <button key={c} onClick={() => setCustomCategory(c)} type="button" className={pillClass(customCategory === c)}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Type your expense category" className={inputClass} />
+              </div>
             )}
           </div>
         ) : (
           <div>
             <label className={labelClass}>Received From</label>
+            {savedSources.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {savedSources.map((s) => (
+                  <button key={s} onClick={() => setReceivedFrom(s)} type="button" className={pillClass(receivedFrom === s)}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             <input type="text" value={receivedFrom} onChange={(e) => setReceivedFrom(e.target.value)}
               placeholder="e.g. Freelance, Friend, Refund" className={inputClass} />
           </div>
