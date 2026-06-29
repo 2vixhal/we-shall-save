@@ -40,6 +40,13 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [moveMember, setMoveMember] = useState("");
+  const [moveCustomMember, setMoveCustomMember] = useState("");
+  const [moveNote, setMoveNote] = useState("");
+  const [familyMembers, setFamilyMembers] = useState<string[]>([]);
+
+  const DEFAULT_FAMILY = ["Dadi", "Vedika", "Mammi", "Papa"];
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -55,6 +62,12 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
   }, [month, year]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    fetch("/api/family/members").then((r) => r.ok ? r.json() : []).then((saved: string[]) => {
+      setFamilyMembers([...new Set([...DEFAULT_FAMILY, ...saved])]);
+    });
+  }, []);
 
   const getAccountName = (accountId: TransactionItem["accountId"]) => {
     if (typeof accountId === "object" && accountId?.name) return accountId.name;
@@ -114,6 +127,53 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
       if (res.ok) { await fetchData(); onChanged(); }
     } catch { /* silently fail */ }
     finally { setDeletingId(null); }
+  };
+
+  const startMove = (tx: TransactionItem) => {
+    setMovingId(tx._id);
+    setMoveMember("");
+    setMoveCustomMember("");
+    setMoveNote(tx.note || "");
+    setError("");
+  };
+
+  const confirmMove = async () => {
+    const selectedMember = moveMember === "__other__" ? moveCustomMember.trim() : moveMember;
+    if (!selectedMember) { setError("Please select a family member"); return; }
+
+    const tx = transactions.find((t) => t._id === movingId);
+    if (!tx) return;
+
+    setSaving(true);
+    try {
+      const accId = typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId;
+
+      const createRes = await fetch("/api/family", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: tx.type,
+          amount: tx.amount,
+          member: selectedMember,
+          accountId: accId,
+          note: moveNote.trim() || undefined,
+          date: tx.date || tx.createdAt,
+        }),
+      });
+      if (!createRes.ok) {
+        const data = await createRes.json();
+        setError(data.error || "Failed to create family transaction");
+        return;
+      }
+
+      const delRes = await fetch(`/api/transactions/${movingId}`, { method: "DELETE" });
+      if (!delRes.ok) { setError("Moved to family but failed to remove original"); return; }
+
+      setMovingId(null);
+      await fetchData();
+      onChanged();
+    } catch { setError("Something went wrong"); }
+    finally { setSaving(false); }
   };
 
   const formatDate = (dateStr: string) => {
@@ -192,42 +252,83 @@ export default function TransactionHistory({ onChanged }: { onChanged: () => voi
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between bg-stone-50 rounded-xl p-3.5 border border-stone-100 hover:border-stone-200 transition-colors">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === "debit" ? "bg-red-100" : "bg-emerald-100"}`}>
-                      <span className={`text-base font-bold ${tx.type === "debit" ? "text-red-700" : "text-emerald-700"}`}>
-                        {tx.type === "debit" ? "−" : "+"}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold text-sm ${tx.type === "debit" ? "text-red-700" : "text-emerald-700"}`}>
-                          {tx.type === "debit" ? "−" : "+"}₹{tx.amount.toLocaleString()}
+                <div className="bg-stone-50 dark:bg-stone-800 rounded-xl border border-stone-100 dark:border-stone-700 hover:border-stone-200 dark:hover:border-stone-600 transition-colors">
+                  <div className="flex items-center justify-between p-3.5">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === "debit" ? "bg-red-100 dark:bg-red-900/30" : "bg-emerald-100 dark:bg-emerald-900/30"}`}>
+                        <span className={`text-base font-bold ${tx.type === "debit" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                          {tx.type === "debit" ? "−" : "+"}
                         </span>
                       </div>
-                      <p className="text-xs text-stone-500 truncate">
-                        {tx.type === "debit" ? tx.category : `From: ${tx.receivedFrom}`}
-                        {tx.salaryMonth && ` (${tx.salaryMonth})`}
-                        {" "}&middot; {getAccountName(tx.accountId)}
-                      </p>
-                      {tx.note && <p className="text-xs text-amber-600 dark:text-amber-400 truncate">📝 {tx.note}</p>}
-                      <p className="text-xs text-stone-400">{formatDate(tx.date || tx.createdAt)}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold text-sm ${tx.type === "debit" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                            {tx.type === "debit" ? "−" : "+"}₹{tx.amount.toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-500 dark:text-stone-400 truncate">
+                          {tx.type === "debit" ? tx.category : `From: ${tx.receivedFrom}`}
+                          {tx.salaryMonth && ` (${tx.salaryMonth})`}
+                          {" "}&middot; {getAccountName(tx.accountId)}
+                        </p>
+                        {tx.note && <p className="text-xs text-amber-600 dark:text-amber-400 truncate">📝 {tx.note}</p>}
+                        <p className="text-xs text-stone-400">{formatDate(tx.date || tx.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
+                      <button onClick={() => startMove(tx)}
+                        className="p-2 text-stone-400 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition-colors cursor-pointer" title="Move to Family">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      </button>
+                      <button onClick={() => startEdit(tx)}
+                        className="p-2 text-stone-400 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors cursor-pointer" title="Edit">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button onClick={() => deleteTransaction(tx._id)} disabled={deletingId === tx._id}
+                        className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 cursor-pointer" title="Delete">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5 flex-shrink-0 ml-2">
-                    <button onClick={() => startEdit(tx)}
-                      className="p-2 text-stone-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer" title="Edit">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button onClick={() => deleteTransaction(tx._id)} disabled={deletingId === tx._id}
-                      className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 cursor-pointer" title="Delete">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+
+                  {movingId === tx._id && (
+                    <div className="border-t border-pink-200 dark:border-pink-800 bg-pink-50/50 dark:bg-pink-900/10 p-3.5 rounded-b-xl space-y-2.5 animate-[fadeIn_0.2s_ease-in-out]">
+                      <p className="text-xs font-semibold text-pink-700 dark:text-pink-400">Move to Family Section</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {familyMembers.map((m) => (
+                          <button key={m} onClick={() => { setMoveMember(m); setMoveCustomMember(""); }} type="button"
+                            className={`px-3 py-1.5 text-xs rounded-full transition-all cursor-pointer ${moveMember === m ? "bg-pink-700 text-white" : "bg-white dark:bg-stone-700 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-600"}`}>
+                            {m}
+                          </button>
+                        ))}
+                        <button onClick={() => setMoveMember("__other__")} type="button"
+                          className={`px-3 py-1.5 text-xs rounded-full transition-all cursor-pointer ${moveMember === "__other__" ? "bg-pink-700 text-white" : "bg-white dark:bg-stone-700 text-stone-600 dark:text-stone-300 border border-stone-200 dark:border-stone-600"}`}>
+                          + Other
+                        </button>
+                      </div>
+                      {moveMember === "__other__" && (
+                        <input type="text" value={moveCustomMember} onChange={(e) => setMoveCustomMember(e.target.value)}
+                          placeholder="Enter member name" className={`${inputClass} dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100`} />
+                      )}
+                      <input type="text" value={moveNote} onChange={(e) => setMoveNote(e.target.value)}
+                        placeholder="Note (optional)" className={`${inputClass} dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100`} />
+                      {error && movingId && <p className="text-red-600 text-xs">{error}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={() => { setMovingId(null); setError(""); }}
+                          className="flex-1 py-2 border border-stone-300 dark:border-stone-600 text-stone-600 dark:text-stone-300 text-xs font-bold rounded-lg cursor-pointer">Cancel</button>
+                        <button onClick={confirmMove} disabled={saving}
+                          className="flex-1 py-2 bg-pink-700 text-white text-xs font-bold rounded-lg hover:bg-pink-800 disabled:opacity-50 cursor-pointer">
+                          {saving ? "Moving..." : "Move to Family"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
