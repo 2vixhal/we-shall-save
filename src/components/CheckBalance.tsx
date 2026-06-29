@@ -62,6 +62,7 @@ export default function CheckBalance() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisAccId, setAnalysisAccId] = useState("");
   const [viewMode, setViewMode] = useState<"month" | "year" | "all">("month");
+  const [showZeroAccounts, setShowZeroAccounts] = useState(false);
   const [expandedAccId, setExpandedAccId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("transactions");
   const [accTxns, setAccTxns] = useState<TxItem[]>([]);
@@ -131,7 +132,7 @@ export default function CheckBalance() {
 
       {accounts.length > 0 ? (
         <div className="space-y-3 mb-6">
-          {accounts.map((acc) => {
+          {accounts.filter((a) => a.balance > 0 || showZeroAccounts).map((acc) => {
             const isExpanded = expandedAccId === acc._id;
             return (
               <div key={acc._id} className={`rounded-xl border overflow-hidden transition-all ${isExpanded ? "border-amber-400 dark:border-amber-500" : "border-stone-200 dark:border-stone-700"}`}>
@@ -299,6 +300,12 @@ export default function CheckBalance() {
               </div>
             );
           })}
+          {accounts.filter((a) => a.balance === 0).length > 0 && (
+            <button onClick={() => setShowZeroAccounts(!showZeroAccounts)}
+              className="w-full py-2 text-xs font-semibold text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors cursor-pointer">
+              {showZeroAccounts ? "Hide" : "Show"} {accounts.filter((a) => a.balance === 0).length} account{accounts.filter((a) => a.balance === 0).length !== 1 ? "s" : ""} with ₹0 balance
+            </button>
+          )}
         </div>
       ) : (
         <p className="text-stone-400 text-center text-sm py-4 mb-6">No deposit accounts yet.</p>

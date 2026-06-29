@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, PieLabelRenderProps,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
 
 interface SubCategoryData { name: string; amount: number; percentage: number; }
@@ -253,19 +253,31 @@ export default function SpendingAnalysis({ month, year, accountId, viewMode = "m
             })}
           </div>
 
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={90}
-                  label={(props: PieLabelRenderProps) => `${props.name || ""}`}>
-                  {pieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `₹${Number(value).toLocaleString()}`} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-52 h-52 flex-shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} dataKey="amount" nameKey="name" cx="50%" cy="50%"
+                    innerRadius={45} outerRadius={80} paddingAngle={2}
+                    label={false}>
+                    {pieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => `₹${Number(value).toLocaleString()}`}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #d6d3d1" }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 w-full grid grid-cols-2 gap-x-3 gap-y-1.5">
+              {data.categories.map((cat, idx) => (
+                <div key={cat.name} className="flex items-center gap-2 min-w-0">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                  <span className="text-[11px] text-stone-600 dark:text-stone-300 truncate">{cat.name}</span>
+                  <span className="text-[10px] text-stone-400 ml-auto flex-shrink-0">{cat.percentage}%</span>
+                </div>
+              ))}
+            </div>
           </div>
         </>
       ) : (
