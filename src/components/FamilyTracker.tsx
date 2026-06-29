@@ -117,6 +117,21 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
   const totalSent = txns.filter((t) => t.type === "debit").reduce((s, t) => s + t.amount, 0);
   const totalReceived = txns.filter((t) => t.type === "credit").reduce((s, t) => s + t.amount, 0);
 
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+
+  const memberSummary = (() => {
+    const map: Record<string, { sent: number; received: number; txns: FamilyTxn[] }> = {};
+    for (const tx of txns) {
+      if (!map[tx.member]) map[tx.member] = { sent: 0, received: 0, txns: [] };
+      if (tx.type === "debit") map[tx.member].sent += tx.amount;
+      else map[tx.member].received += tx.amount;
+      map[tx.member].txns.push(tx);
+    }
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data, net: data.sent - data.received }))
+      .sort((a, b) => b.net - a.net);
+  })();
+
   const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500 bg-white text-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100";
   const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400";
 
@@ -233,57 +248,91 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
           </div>
         </div>
 
-        {txns.length === 0 ? (
-          <p className="text-stone-400 text-center text-sm py-4">No family transactions this month.</p>
+        {memberSummary.length === 0 ? (
+          <p className="text-stone-400 text-center text-sm py-4">No family transactions for this period.</p>
         ) : (
-          <div className="space-y-2">
-            {txns.map((tx) => (
-              <div key={tx._id} className="bg-stone-50 dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-3">
-                {editId === tx._id ? (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as "debit" | "credit" })}
-                        className="px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100">
-                        <option value="debit">Sent</option>
-                        <option value="credit">Received</option>
-                      </select>
-                      <input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) })}
-                        className="px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100" />
-                    </div>
-                    <input type="text" value={editForm.member} onChange={(e) => setEditForm({ ...editForm, member: e.target.value })}
-                      placeholder="Member name" className="w-full px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100" />
-                    <div className="flex gap-2">
-                      <button onClick={handleEditSave} className="flex-1 py-1.5 bg-pink-700 text-white text-xs font-bold rounded-lg cursor-pointer">Save</button>
-                      <button onClick={() => setEditId(null)} className="flex-1 py-1.5 border border-stone-300 dark:border-stone-600 text-stone-600 dark:text-stone-300 text-xs font-bold rounded-lg cursor-pointer">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold ${tx.type === "debit" ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                          {tx.type === "debit" ? "−" : "+"}₹{tx.amount.toLocaleString()}
-                        </span>
-                        <span className="text-xs font-medium text-stone-700 dark:text-stone-200">{tx.member}</span>
-                        <span className="text-[10px] text-stone-400">{getAccName(tx.accountId)}</span>
+          <div className="space-y-2.5">
+            {memberSummary.map((ms) => {
+              const isOpen = expandedMember === ms.name;
+              return (
+                <div key={ms.name} className={`rounded-xl border overflow-hidden transition-all ${isOpen ? "border-pink-400 dark:border-pink-600" : "border-stone-200 dark:border-stone-700"}`}>
+                  <button onClick={() => setExpandedMember(isOpen ? null : ms.name)}
+                    className={`w-full text-left p-3.5 cursor-pointer transition-colors ${isOpen ? "bg-pink-50 dark:bg-pink-900/15" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700/50"}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-sm text-stone-800 dark:text-stone-100">{ms.name}</p>
+                        <div className="flex gap-3 mt-1 text-[11px]">
+                          <span className="text-red-600 dark:text-red-400 font-medium">Sent ₹{ms.sent.toLocaleString()}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Received ₹{ms.received.toLocaleString()}</span>
+                        </div>
                       </div>
-                      {tx.note && <p className="text-[11px] text-pink-600 dark:text-pink-400 truncate mt-0.5">📝 {tx.note}</p>}
-                      <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(tx.date)}</p>
+                      <div className="text-right flex items-center gap-2">
+                        <div>
+                          <p className="text-[10px] text-stone-400">Net</p>
+                          <p className={`text-lg font-bold tabular-nums ${ms.net > 0 ? "text-red-600 dark:text-red-400" : ms.net < 0 ? "text-emerald-600 dark:text-emerald-400" : "text-stone-500"}`}>
+                            {ms.net > 0 ? "−" : ms.net < 0 ? "+" : ""}₹{Math.abs(ms.net).toLocaleString()}
+                          </p>
+                        </div>
+                        <svg className={`w-4 h-4 text-stone-400 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
-                    <div className="flex gap-1.5 ml-2">
-                      <button onClick={() => { setEditId(tx._id); setEditForm({ type: tx.type, amount: tx.amount, member: tx.member, accountId: typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId }); }}
-                        className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                      </button>
-                      <button onClick={() => handleDelete(tx._id)}
-                        className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer" title="Delete">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 p-3 space-y-1.5 animate-[fadeIn_0.2s_ease-in-out] max-h-72 overflow-y-auto">
+                      {ms.txns.map((tx) => (
+                        <div key={tx._id}>
+                          {editId === tx._id ? (
+                            <div className="bg-pink-50 dark:bg-pink-900/10 rounded-lg p-2.5 space-y-2 border border-pink-200 dark:border-pink-800">
+                              <div className="grid grid-cols-2 gap-2">
+                                <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as "debit" | "credit" })}
+                                  className="px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100">
+                                  <option value="debit">Sent</option>
+                                  <option value="credit">Received</option>
+                                </select>
+                                <input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) })}
+                                  className="px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100" />
+                              </div>
+                              <input type="text" value={editForm.member} onChange={(e) => setEditForm({ ...editForm, member: e.target.value })}
+                                placeholder="Member name" className="w-full px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 dark:text-stone-100" />
+                              <div className="flex gap-2">
+                                <button onClick={handleEditSave} className="flex-1 py-1.5 bg-pink-700 text-white text-xs font-bold rounded-lg cursor-pointer">Save</button>
+                                <button onClick={() => setEditId(null)} className="flex-1 py-1.5 border border-stone-300 dark:border-stone-600 text-stone-600 dark:text-stone-300 text-xs font-bold rounded-lg cursor-pointer">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-bold ${tx.type === "debit" ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                    {tx.type === "debit" ? "−" : "+"}₹{tx.amount.toLocaleString()}
+                                  </span>
+                                  <span className="text-[10px] text-stone-400">{getAccName(tx.accountId)}</span>
+                                </div>
+                                {tx.note && <p className="text-[11px] text-pink-600 dark:text-pink-400 truncate mt-0.5">📝 {tx.note}</p>}
+                                <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(tx.date)}</p>
+                              </div>
+                              <div className="flex gap-1 ml-2">
+                                <button onClick={() => { setEditId(tx._id); setEditForm({ type: tx.type, amount: tx.amount, member: tx.member, accountId: typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId }); }}
+                                  className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                </button>
+                                <button onClick={() => handleDelete(tx._id)}
+                                  className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer" title="Delete">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
