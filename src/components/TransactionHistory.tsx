@@ -19,10 +19,8 @@ interface TransactionItem {
 }
 
 const CATEGORIES = [
-  "Transport", "Petrol",
-  "Recharges", "Outside Eating", "Lent", "Protein",
-  "Recreational Activity", "Food", "Shopping", "Bills",
-  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
+  "Transport", "Recharges", "Outday", "Health & Fitness", "Skincare",
+  "Travel", "Shopping", "Education", "UPI Lite", "Grocery", "EMI", "Misc", "Other",
 ];
 
 export default function TransactionHistory({ onChanged }: { onChanged: () => void }) {

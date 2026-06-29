@@ -4,16 +4,30 @@ import { useState, useEffect } from "react";
 
 interface Account { _id: string; name: string; balance: number; }
 
-const CATEGORIES = [
-  "Transport", "Petrol", "Recharges", "Outside Eating", "Lent", "Protein",
-  "Recreational Activity", "Food", "Shopping", "Bills",
-  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc", "Other",
+const CATEGORY_CONFIG: { name: string; subs?: string[] }[] = [
+  { name: "Transport", subs: ["Petrol", "Auto", "Other"] },
+  { name: "Recharges", subs: ["WiFi", "Mobile", "Other"] },
+  { name: "Outday", subs: ["Food", "Tickets", "Other"] },
+  { name: "Health & Fitness", subs: ["Protein", "Apparel", "Gym", "Other"] },
+  { name: "Skincare" },
+  { name: "Travel" },
+  { name: "Shopping", subs: ["Clothing", "Other"] },
+  { name: "Education" },
+  { name: "UPI Lite" },
+  { name: "Grocery" },
+  { name: "EMI", subs: ["Education Loan", "Other"] },
+  { name: "Misc" },
+  { name: "Other" },
 ];
+
+const CATEGORIES = CATEGORY_CONFIG.map((c) => c.name);
 
 export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   const [mode, setMode] = useState<"debit" | "credit">("debit");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
+  const [customSub, setCustomSub] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [receivedFrom, setReceivedFrom] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -22,6 +36,7 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [savedCustomCats, setSavedCustomCats] = useState<string[]>([]);
   const [savedSources, setSavedSources] = useState<string[]>([]);
+  const [savedTripNames, setSavedTripNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -32,19 +47,38 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   };
 
   const fetchSavedData = async () => {
-    const [catRes, srcRes] = await Promise.all([
+    const [catRes, srcRes, tripRes] = await Promise.all([
       fetch("/api/transactions/custom-categories"),
       fetch("/api/transactions/credit-sources"),
+      fetch("/api/transactions/family-names?category=Travel"),
     ]);
     if (catRes.ok) setSavedCustomCats(await catRes.json());
     if (srcRes.ok) setSavedSources(await srcRes.json());
+    if (tripRes.ok) setSavedTripNames(await tripRes.json());
   };
 
   useEffect(() => { fetchAccounts(); fetchSavedData(); }, []);
 
+  const currentConfig = CATEGORY_CONFIG.find((c) => c.name === category);
+  const hasSubs = currentConfig?.subs && currentConfig.subs.length > 0;
+  const isTravel = category === "Travel";
+
   const handleDiscard = () => {
-    setAmount(""); setCategory(""); setCustomCategory(""); setNote("");
-    setReceivedFrom(""); setAccountId(""); setDate(""); setError(""); setSuccess("");
+    setAmount(""); setCategory(""); setSubCategory(""); setCustomSub("");
+    setCustomCategory(""); setNote(""); setReceivedFrom(""); setAccountId("");
+    setDate(""); setError(""); setSuccess("");
+  };
+
+  const buildFinalCategory = () => {
+    if (category === "Other") return customCategory.trim();
+    if (hasSubs) {
+      const sub = subCategory === "Other" ? customSub.trim() : subCategory;
+      return sub ? `${category} - ${sub}` : category;
+    }
+    if (isTravel) {
+      return customSub.trim() ? `Travel - ${customSub.trim()}` : "Travel";
+    }
+    return category;
   };
 
   const handleSave = async () => {
@@ -52,6 +86,8 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
     if (!amount || !accountId) { setError("Amount and account are required"); return; }
     if (mode === "debit" && !category) { setError("Please select a category"); return; }
     if (mode === "debit" && category === "Other" && !customCategory.trim()) { setError("Please specify the category"); return; }
+    if (mode === "debit" && hasSubs && !subCategory) { setError("Please select a sub-category"); return; }
+    if (mode === "debit" && hasSubs && subCategory === "Other" && !customSub.trim()) { setError("Please specify the sub-category"); return; }
     if (mode === "credit" && !receivedFrom) { setError("Please enter who you received this from"); return; }
 
     setLoading(true);
@@ -62,7 +98,7 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
         body: JSON.stringify({
           type: mode,
           amount: parseFloat(amount),
-          category: mode === "debit" ? (category === "Other" ? customCategory.trim() : category) : undefined,
+          category: mode === "debit" ? buildFinalCategory() : undefined,
           receivedFrom: mode === "credit" ? receivedFrom : undefined,
           accountId,
           date: date || undefined,
@@ -80,7 +116,7 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
   };
 
   const pillClass = (active: boolean) =>
-    `px-3 py-1 text-xs rounded-full transition-all cursor-pointer ${active ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`;
+    `px-3 py-1.5 text-xs rounded-full transition-all cursor-pointer ${active ? "bg-stone-800 text-amber-50 dark:bg-amber-600" : "bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300"}`;
 
   const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white text-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:focus:ring-amber-400/50";
   const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400";
@@ -104,20 +140,23 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
             placeholder="0.00" min="0" step="0.01" className={inputClass} />
         </div>
         {mode === "debit" ? (
-          <div>
-            <label className={labelClass}>Category</label>
-            <select value={category} onChange={(e) => { setCategory(e.target.value); if (e.target.value !== "Other") setCustomCategory(""); }} className={inputClass}>
-              <option value="">Select a category</option>
-              {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+          <>
+            <div>
+              <label className={labelClass}>Category</label>
+              <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(""); setCustomSub(""); setCustomCategory(""); }} className={inputClass}>
+                <option value="">Select a category</option>
+                {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+
+            {/* Other — custom category with saved pills */}
             {category === "Other" && (
-              <div className="mt-2">
+              <div>
+                <label className={labelClass}>Specify Category</label>
                 {savedCustomCats.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {savedCustomCats.map((c) => (
-                      <button key={c} onClick={() => setCustomCategory(c)} type="button" className={pillClass(customCategory === c)}>
-                        {c}
-                      </button>
+                      <button key={c} onClick={() => setCustomCategory(c)} type="button" className={pillClass(customCategory === c)}>{c}</button>
                     ))}
                   </div>
                 )}
@@ -125,16 +164,46 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
                   placeholder="Type your expense category" className={inputClass} />
               </div>
             )}
-          </div>
+
+            {/* Sub-categories as pills */}
+            {hasSubs && (
+              <div>
+                <label className={labelClass}>Sub-Category</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {currentConfig!.subs!.map((s) => (
+                    <button key={s} onClick={() => { setSubCategory(s); if (s !== "Other") setCustomSub(""); }} type="button" className={pillClass(subCategory === s)}>{s}</button>
+                  ))}
+                </div>
+                {subCategory === "Other" && (
+                  <input type="text" value={customSub} onChange={(e) => setCustomSub(e.target.value)}
+                    placeholder="Specify sub-category" className={inputClass} />
+                )}
+              </div>
+            )}
+
+            {/* Travel — trip name with remembered names */}
+            {isTravel && (
+              <div>
+                <label className={labelClass}>Trip Name</label>
+                {savedTripNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {savedTripNames.map((t) => (
+                      <button key={t} onClick={() => setCustomSub(t)} type="button" className={pillClass(customSub === t)}>{t}</button>
+                    ))}
+                  </div>
+                )}
+                <input type="text" value={customSub} onChange={(e) => setCustomSub(e.target.value)}
+                  placeholder="e.g. Goa Trip, Manali 2026" className={inputClass} />
+              </div>
+            )}
+          </>
         ) : (
           <div>
             <label className={labelClass}>Received From</label>
             {savedSources.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {savedSources.map((s) => (
-                  <button key={s} onClick={() => setReceivedFrom(s)} type="button" className={pillClass(receivedFrom === s)}>
-                    {s}
-                  </button>
+                  <button key={s} onClick={() => setReceivedFrom(s)} type="button" className={pillClass(receivedFrom === s)}>{s}</button>
                 ))}
               </div>
             )}
@@ -142,13 +211,13 @@ export default function DebitCreditForm({ onSaved }: { onSaved: () => void }) {
               placeholder="e.g. Freelance, Friend, Refund" className={inputClass} />
           </div>
         )}
-        {mode === "debit" && (
-          <div>
-            <label className={labelClass}>Note (optional)</label>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Quick note about this expense" className={inputClass} />
-          </div>
-        )}
+
+        <div>
+          <label className={labelClass}>Note (optional)</label>
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Quick note about this expense" className={inputClass} />
+        </div>
+
         <div>
           <label className={labelClass}>Account</label>
           {accounts.length === 0 ? (

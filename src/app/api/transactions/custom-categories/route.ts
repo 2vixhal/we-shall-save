@@ -4,9 +4,8 @@ import { connectDB } from "@/lib/mongodb";
 import { Transaction } from "@/models/Transaction";
 
 const PRESET = [
-  "Transport", "Petrol", "Recharges", "Outside Eating", "Lent", "Protein",
-  "Recreational Activity", "Food", "Shopping", "Bills",
-  "Entertainment", "Health", "Education", "Clothing", "UPI Lite", "Misc",
+  "Transport", "Recharges", "Outday", "Health & Fitness", "Skincare",
+  "Travel", "Shopping", "Education", "UPI Lite", "Grocery", "EMI", "Misc",
 ];
 
 export async function GET() {
@@ -16,11 +15,14 @@ export async function GET() {
 
   await connectDB();
 
-  const categories = await Transaction.distinct("category", {
+  const allCats = await Transaction.distinct("category", {
     userId: session.user.id,
     type: "debit",
     category: { $nin: [...PRESET, null, ""] },
   });
 
-  return NextResponse.json(categories);
+  const subPrefixes = PRESET.map((p) => `${p} - `);
+  const custom = allCats.filter((c) => !subPrefixes.some((pre) => c.startsWith(pre)));
+
+  return NextResponse.json(custom);
 }
