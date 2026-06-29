@@ -203,19 +203,19 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
                 <div className="space-y-2.5">
                   <div>
                     <label className={labelClass}>Name</label>
-                    <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className={inputClass} />
+                    <input type="text" value={editForm.name} onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Current Balance (₹)</label>
-                    <input type="number" value={editForm.balance} onChange={(e) => setEditForm({ ...editForm, balance: e.target.value })} min="0" step="0.01" className={inputClass} />
+                    <input type="number" value={editForm.balance} onChange={(e) => setEditForm(f => ({ ...f, balance: e.target.value }))} min="0" step="0.01" className={inputClass} />
                   </div>
                   {sourceSelect(
                     editForm.source,
-                    (v) => setEditForm({ ...editForm, source: v }),
+                    (v) => setEditForm(f => ({ ...f, source: v })),
                     editForm.customSource,
-                    (v) => setEditForm({ ...editForm, customSource: v }),
+                    (v) => setEditForm(f => ({ ...f, customSource: v })),
                     editForm.sourceMonth,
-                    (v) => setEditForm({ ...editForm, sourceMonth: v }),
+                    (v) => setEditForm(f => ({ ...f, sourceMonth: v })),
                   )}
                   {editError && <p className="text-red-600 text-xs text-center">{editError}</p>}
                   <div className="flex gap-2">
