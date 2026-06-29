@@ -38,18 +38,30 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
   const now = new Date();
 
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalInvestments, setTotalInvestments] = useState(0);
+  const [totalFamily, setTotalFamily] = useState(0);
 
   const fetchAccounts = useCallback(async () => {
     setLoadingAccs(true);
     try {
-      const [accRes, expRes] = await Promise.all([
+      const [accRes, expRes, invRes, famRes] = await Promise.all([
         fetch("/api/accounts?detailed=true"),
         fetch("/api/analysis?view=all"),
+        fetch("/api/investments?view=all"),
+        fetch("/api/family"),
       ]);
       if (accRes.ok) setAccounts(await accRes.json());
       if (expRes.ok) {
         const data = await expRes.json();
         setTotalExpenses(data.totalSpent || 0);
+      }
+      if (invRes.ok) {
+        const invs: { amount: number }[] = await invRes.json();
+        setTotalInvestments(invs.reduce((s, i) => s + i.amount, 0));
+      }
+      if (famRes.ok) {
+        const fams: { type: string; amount: number }[] = await famRes.json();
+        setTotalFamily(fams.filter((f) => f.type === "debit").reduce((s, f) => s + f.amount, 0));
       }
     } catch { /* silently fail */ }
     finally { setLoadingAccs(false); }
@@ -68,6 +80,13 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
     { label: "Allowances", amount: getSourceTotal("Allowance"), color: "blue" },
     { label: "Scholarship", amount: getSourceTotal("Scholarship"), color: "violet" },
     { label: "Other", amount: totalReceived - getSourceTotal("Salary") - getSourceTotal("Allowance") - getSourceTotal("Scholarship"), color: "stone" },
+  ].filter((s) => s.amount > 0);
+
+  const spentBreakdown = [
+    { label: "Expenses", amount: totalExpenses, color: "red" },
+    { label: "Investments", amount: totalInvestments, color: "amber" },
+    { label: "Family", amount: totalFamily, color: "pink" },
+    { label: "Balance", amount: totalBalance, color: "emerald" },
   ].filter((s) => s.amount > 0);
 
   const handleCreate = async () => {
@@ -178,61 +197,56 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
     <div>
       {/* Financial overview */}
       {accounts.length > 0 && (
-        <div className="mb-6 space-y-3">
-          {/* Big 3 cards */}
+        <div className="mb-6 space-y-4">
           <div className="bg-gradient-to-br from-stone-800 to-stone-900 rounded-xl p-5 text-white">
             <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Total Money Received</p>
             <p className="text-3xl font-bold mt-1 tracking-tight">₹{totalReceived.toLocaleString()}</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gradient-to-br from-red-700 to-red-800 rounded-xl p-4 text-white">
-              <p className="text-xs font-semibold text-red-300 uppercase tracking-wider">Total Expenses</p>
-              <p className="text-2xl font-bold mt-1">₹{totalExpenses.toLocaleString()}</p>
-              <p className="text-[10px] text-red-300/70 mt-1">
-                {totalReceived > 0 ? Math.round((totalExpenses / totalReceived) * 100) : 0}% of received
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-emerald-700 to-emerald-800 rounded-xl p-4 text-white">
-              <p className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Remaining</p>
-              <p className="text-2xl font-bold mt-1">₹{totalBalance.toLocaleString()}</p>
-              <p className="text-[10px] text-emerald-300/70 mt-1">
-                {totalReceived > 0 ? Math.round((totalBalance / totalReceived) * 100) : 0}% of received
-              </p>
-            </div>
-          </div>
 
-          {/* Spending bar */}
-          <div className="h-2.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all"
-              style={{ width: `${totalReceived > 0 ? Math.min((totalExpenses / totalReceived) * 100, 100) : 0}%` }} />
-          </div>
-
-          {/* Source breakdown — smaller */}
+          {/* Received From */}
           {sourceBreakdown.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-1.5">Received From</p>
-              <div className="flex flex-wrap gap-2">
-                {sourceBreakdown.map((s) => (
-                  <div key={s.label} className={`rounded-lg px-3 py-2 border ${
-                    s.color === "emerald" ? "bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800" :
-                    s.color === "blue" ? "bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800" :
-                    s.color === "violet" ? "bg-violet-50 border-violet-100 dark:bg-violet-900/20 dark:border-violet-800" :
-                    "bg-stone-50 border-stone-200 dark:bg-stone-800 dark:border-stone-700"
-                  }`}>
-                    <p className={`text-[10px] font-semibold ${
-                      s.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
-                      s.color === "blue" ? "text-blue-600 dark:text-blue-400" :
-                      s.color === "violet" ? "text-violet-600 dark:text-violet-400" :
-                      "text-stone-500 dark:text-stone-400"
-                    }`}>{s.label}</p>
-                    <p className={`text-sm font-bold ${
-                      s.color === "emerald" ? "text-emerald-700 dark:text-emerald-300" :
-                      s.color === "blue" ? "text-blue-700 dark:text-blue-300" :
-                      s.color === "violet" ? "text-violet-700 dark:text-violet-300" :
-                      "text-stone-700 dark:text-stone-200"
-                    }`}>₹{s.amount.toLocaleString()}</p>
-                  </div>
-                ))}
+              <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Received From</p>
+              <div className="grid grid-cols-2 gap-2">
+                {sourceBreakdown.map((s) => {
+                  const colorMap: Record<string, { bg: string; border: string; title: string; amount: string }> = {
+                    emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-100 dark:border-emerald-800", title: "text-emerald-600 dark:text-emerald-400", amount: "text-emerald-700 dark:text-emerald-300" },
+                    blue: { bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-100 dark:border-blue-800", title: "text-blue-600 dark:text-blue-400", amount: "text-blue-700 dark:text-blue-300" },
+                    violet: { bg: "bg-violet-50 dark:bg-violet-900/20", border: "border-violet-100 dark:border-violet-800", title: "text-violet-600 dark:text-violet-400", amount: "text-violet-700 dark:text-violet-300" },
+                    stone: { bg: "bg-stone-50 dark:bg-stone-800", border: "border-stone-200 dark:border-stone-700", title: "text-stone-500 dark:text-stone-400", amount: "text-stone-700 dark:text-stone-200" },
+                  };
+                  const c = colorMap[s.color] || colorMap.stone;
+                  return (
+                    <div key={s.label} className={`rounded-xl p-3 border ${c.bg} ${c.border}`}>
+                      <p className={`text-[10px] font-semibold uppercase tracking-wider ${c.title}`}>{s.label}</p>
+                      <p className={`text-base font-bold mt-0.5 ${c.amount}`}>₹{s.amount.toLocaleString()}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Spent On */}
+          {spentBreakdown.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Where It Went</p>
+              <div className="grid grid-cols-2 gap-2">
+                {spentBreakdown.map((s) => {
+                  const colorMap: Record<string, { bg: string; border: string; title: string; amount: string }> = {
+                    red: { bg: "bg-red-50 dark:bg-red-900/20", border: "border-red-100 dark:border-red-800", title: "text-red-600 dark:text-red-400", amount: "text-red-700 dark:text-red-300" },
+                    amber: { bg: "bg-amber-50 dark:bg-amber-900/20", border: "border-amber-100 dark:border-amber-800", title: "text-amber-600 dark:text-amber-400", amount: "text-amber-700 dark:text-amber-300" },
+                    pink: { bg: "bg-pink-50 dark:bg-pink-900/20", border: "border-pink-100 dark:border-pink-800", title: "text-pink-600 dark:text-pink-400", amount: "text-pink-700 dark:text-pink-300" },
+                    emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-100 dark:border-emerald-800", title: "text-emerald-600 dark:text-emerald-400", amount: "text-emerald-700 dark:text-emerald-300" },
+                  };
+                  const c = colorMap[s.color] || colorMap.red;
+                  return (
+                    <div key={s.label} className={`rounded-xl p-3 border ${c.bg} ${c.border}`}>
+                      <p className={`text-[10px] font-semibold uppercase tracking-wider ${c.title}`}>{s.label}</p>
+                      <p className={`text-base font-bold mt-0.5 ${c.amount}`}>₹{s.amount.toLocaleString()}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
