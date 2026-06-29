@@ -9,21 +9,25 @@ interface InvestmentItem {
   amount: number;
   category: string;
   subCategory?: string;
+  note?: string;
   accountId: { _id: string; name: string } | null;
   date: string;
 }
 
-const INV_CATEGORIES = ["Mutual Fund", "ETF", "Stock", "Gold", "Silver", "FD", "Debt Funds"];
+const INV_CATEGORIES = ["Mutual Fund", "ETF", "Stock", "Gold", "Silver", "FD", "Debt Funds", "Other"];
 const NEEDS_SUB = ["Mutual Fund", "ETF", "Stock", "FD", "Debt Funds"];
 
 export default function InvestmentTracker({ onChanged }: { onChanged: () => void }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
+  const [viewMode, setViewMode] = useState<"month" | "year" | "all">("month");
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [subCategory, setSubCategory] = useState("");
+  const [note, setNote] = useState("");
   const [accountId, setAccountId] = useState("");
   const [date, setDate] = useState("");
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -34,8 +38,9 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
   const [success, setSuccess] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ amount: "", category: "", subCategory: "", accountId: "", date: "" });
+  const [editForm, setEditForm] = useState({ amount: "", category: "", customCategory: "", subCategory: "", note: "", accountId: "", date: "" });
   const [saving, setSaving] = useState(false);
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
@@ -48,29 +53,40 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
   };
 
   const fetchInvestments = useCallback(async () => {
-    const res = await fetch(`/api/investments?month=${month}&year=${year}`);
+    const dateParams = viewMode === "all" ? "" : viewMode === "year" ? `&year=${year}` : `&month=${month}&year=${year}`;
+    const res = await fetch(`/api/investments?view=${viewMode}${dateParams}`);
     if (res.ok) setInvestments(await res.json());
-  }, [month, year]);
+  }, [month, year, viewMode]);
 
   useEffect(() => { fetchAccounts(); fetchSubs(); }, []);
   useEffect(() => { if (showHistory) fetchInvestments(); }, [fetchInvestments, showHistory]);
 
+  const effectiveCategory = category === "Other" ? customCategory.trim() : category;
+
   const handleSave = async () => {
     setError(""); setSuccess("");
     if (!amount || !category || !accountId) { setError("Amount, category, and account are required"); return; }
+    if (category === "Other" && !customCategory.trim()) { setError("Please specify the investment type"); return; }
     if (NEEDS_SUB.includes(category) && !subCategory.trim()) { setError("Please specify the name (e.g. fund name)"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/investments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parseFloat(amount), category, subCategory: NEEDS_SUB.includes(category) ? subCategory.trim() : undefined, accountId, date: date || undefined }),
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          category: effectiveCategory,
+          subCategory: NEEDS_SUB.includes(category) ? subCategory.trim() : undefined,
+          note: note.trim() || undefined,
+          accountId,
+          date: date || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to save"); }
       else {
-        setSuccess(`₹${amount} invested in ${category}!`);
-        setAmount(""); setCategory(""); setSubCategory(""); setAccountId(""); setDate("");
+        setSuccess(`₹${amount} invested in ${effectiveCategory}!`);
+        setAmount(""); setCategory(""); setCustomCategory(""); setSubCategory(""); setNote(""); setAccountId(""); setDate("");
         fetchAccounts(); fetchSubs(); onChanged();
         if (showHistory) fetchInvestments();
       }
@@ -79,25 +95,33 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
   };
 
   const startEdit = (inv: InvestmentItem) => {
+    const isPreset = INV_CATEGORIES.includes(inv.category) && inv.category !== "Other";
     setEditingId(inv._id);
     setEditForm({
-      amount: inv.amount.toString(), category: inv.category,
+      amount: inv.amount.toString(),
+      category: isPreset ? inv.category : "Other",
+      customCategory: isPreset ? "" : inv.category,
       subCategory: inv.subCategory || "",
+      note: inv.note || "",
       accountId: inv.accountId?._id || "",
       date: inv.date ? new Date(inv.date).toISOString().split("T")[0] : "",
     });
   };
 
   const saveEdit = async () => {
-    if (!editForm.amount || !editForm.category || !editForm.accountId) return;
+    const finalCat = editForm.category === "Other" ? editForm.customCategory.trim() : editForm.category;
+    if (!editForm.amount || !finalCat || !editForm.accountId) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/investments/${editingId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: parseFloat(editForm.amount), category: editForm.category,
+          amount: parseFloat(editForm.amount),
+          category: finalCat,
           subCategory: NEEDS_SUB.includes(editForm.category) ? editForm.subCategory.trim() : undefined,
-          accountId: editForm.accountId, date: editForm.date || undefined,
+          note: editForm.note.trim() || undefined,
+          accountId: editForm.accountId,
+          date: editForm.date || undefined,
         }),
       });
       if (res.ok) { setEditingId(null); fetchInvestments(); fetchAccounts(); onChanged(); }
@@ -110,6 +134,23 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
     const res = await fetch(`/api/investments/${id}`, { method: "DELETE" });
     if (res.ok) { fetchInvestments(); fetchAccounts(); onChanged(); }
   };
+
+  const fmtDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+  const categorySummary = (() => {
+    const map: Record<string, { total: number; items: InvestmentItem[] }> = {};
+    for (const inv of investments) {
+      if (!map[inv.category]) map[inv.category] = { total: 0, items: [] };
+      map[inv.category].total += inv.amount;
+      map[inv.category].items.push(inv);
+    }
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total);
+  })();
+
+  const totalInvested = investments.reduce((s, i) => s + i.amount, 0);
 
   const inputClass = "w-full px-4 py-2.5 border border-stone-300 rounded-xl text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 bg-white text-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100";
   const labelClass = "block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400";
@@ -126,10 +167,14 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
         </div>
         <div>
           <label className={labelClass}>Category</label>
-          <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(""); }} className={inputClass}>
+          <select value={category} onChange={(e) => { setCategory(e.target.value); setSubCategory(""); setCustomCategory(""); }} className={inputClass}>
             <option value="">Select investment type</option>
             {INV_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          {category === "Other" && (
+            <input type="text" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="e.g. Savings, PPF, NPS" className={`${inputClass} mt-2`} />
+          )}
         </div>
         {NEEDS_SUB.includes(category) && (
           <div>
@@ -156,6 +201,11 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
           </select>
         </div>
         <div>
+          <label className={labelClass}>Note (optional)</label>
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. SIP, lump sum, one-time" className={inputClass} />
+        </div>
+        <div>
           <label className={labelClass}>Date (optional)</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:light] dark:[color-scheme:dark]`} />
         </div>
@@ -170,71 +220,134 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
       <div className="border-t border-stone-200 dark:border-stone-700 pt-4">
         <button onClick={() => setShowHistory(!showHistory)}
           className="w-full py-2 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200 text-sm font-semibold rounded-xl hover:bg-stone-200 dark:hover:bg-stone-600 transition-colors cursor-pointer">
-          {showHistory ? "Hide" : "Show"} Monthly Investment History
+          {showHistory ? "Hide" : "Show"} Investment History
         </button>
         {showHistory && (
           <div className="mt-4 animate-[fadeIn_0.3s_ease-in-out]">
-            <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
-            {investments.length === 0 ? (
-              <p className="text-center text-stone-400 text-sm py-4">No investments this month.</p>
+            <div className="flex bg-stone-100 dark:bg-stone-700 rounded-xl p-1 mb-4">
+              {(["month", "year", "all"] as const).map((v) => (
+                <button key={v} onClick={() => setViewMode(v)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${viewMode === v ? "bg-amber-700 text-white shadow" : "text-stone-500 dark:text-stone-400"}`}>
+                  {v === "month" ? "Monthly" : v === "year" ? "Yearly" : "All Time"}
+                </button>
+              ))}
+            </div>
+            {viewMode === "month" && (
+              <MonthSelector month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+            )}
+            {viewMode === "year" && (
+              <div className="flex items-center justify-center gap-4 mb-5">
+                <button onClick={() => setYear(year - 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-lg font-bold text-stone-700 dark:text-stone-200 tabular-nums">{year}</span>
+                <button onClick={() => setYear(year + 1)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            )}
+
+            {/* Total */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl p-3.5 text-center mb-4">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Total Invested</p>
+              <p className="text-xl font-bold text-amber-800 dark:text-amber-300">₹{totalInvested.toLocaleString()}</p>
+            </div>
+
+            {/* Per-category summary */}
+            {categorySummary.length === 0 ? (
+              <p className="text-center text-stone-400 text-sm py-4">No investments for this period.</p>
             ) : (
-              <div className="space-y-2">
-                <p className="text-sm font-bold text-stone-700 dark:text-stone-200">
-                  Total: ₹{investments.reduce((s, i) => s + i.amount, 0).toLocaleString()}
-                </p>
-                {investments.map((inv) => (
-                  <div key={inv._id}>
-                    {editingId === inv._id ? (
-                      <div className="bg-stone-50 dark:bg-stone-800 rounded-xl p-3 border-2 border-amber-500/50 space-y-2">
-                        <input type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-                          placeholder="Amount" className={inputClass} />
-                        <select value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value, subCategory: "" }))} className={inputClass}>
-                          {INV_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                        {NEEDS_SUB.includes(editForm.category) && (
-                          <>
-                            {editSubsForCategory.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                {editSubsForCategory.map((s) => (
-                                  <button key={s} onClick={() => setEditForm((f) => ({ ...f, subCategory: s }))} type="button"
-                                    className={`px-2 py-0.5 text-xs rounded-full cursor-pointer ${editForm.subCategory === s ? "bg-stone-800 text-amber-50" : "bg-stone-200 text-stone-600"}`}>{s}</button>
-                                ))}
-                              </div>
-                            )}
-                            <input type="text" value={editForm.subCategory} onChange={(e) => setEditForm((f) => ({ ...f, subCategory: e.target.value }))}
-                              placeholder="Fund/Stock name" className={inputClass} />
-                          </>
-                        )}
-                        <select value={editForm.accountId} onChange={(e) => setEditForm((f) => ({ ...f, accountId: e.target.value }))} className={inputClass}>
-                          {accounts.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
-                        </select>
-                        <input type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} className={inputClass} />
-                        <div className="flex gap-2">
-                          <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 border border-stone-300 text-stone-600 text-xs font-bold rounded-lg cursor-pointer">Cancel</button>
-                          <button onClick={saveEdit} disabled={saving} className="flex-1 py-1.5 bg-stone-800 text-white text-xs font-bold rounded-lg cursor-pointer disabled:opacity-50">
-                            {saving ? "Saving..." : "Save"}
-                          </button>
+              <div className="space-y-2.5">
+                {categorySummary.map((cs) => {
+                  const isOpen = expandedCat === cs.name;
+                  return (
+                    <div key={cs.name} className={`rounded-xl border overflow-hidden transition-all ${isOpen ? "border-amber-400 dark:border-amber-600" : "border-stone-200 dark:border-stone-700"}`}>
+                      <button onClick={() => setExpandedCat(isOpen ? null : cs.name)}
+                        className={`w-full text-left p-3.5 cursor-pointer transition-colors ${isOpen ? "bg-amber-50 dark:bg-amber-900/15" : "bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700/50"}`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-sm text-stone-800 dark:text-stone-100">{cs.name}</p>
+                            <p className="text-[11px] text-stone-400 mt-0.5">{cs.items.length} investment{cs.items.length !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-amber-800 dark:text-amber-400 tabular-nums">₹{cs.total.toLocaleString()}</span>
+                            <svg className={`w-4 h-4 text-stone-400 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-xl p-3">
-                        <div>
-                          <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">{inv.category}{inv.subCategory ? ` — ${inv.subCategory}` : ""}</p>
-                          <p className="text-xs text-stone-400">{new Date(inv.date).toLocaleDateString()} · {inv.accountId?.name || "—"}</p>
+                      </button>
+
+                      {isOpen && (
+                        <div className="border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 p-3 space-y-1.5 animate-[fadeIn_0.2s_ease-in-out] max-h-72 overflow-y-auto">
+                          {cs.items.map((inv) => (
+                            <div key={inv._id}>
+                              {editingId === inv._id ? (
+                                <div className="bg-amber-50 dark:bg-amber-900/10 rounded-lg p-2.5 space-y-2 border border-amber-200 dark:border-amber-800">
+                                  <input type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
+                                    placeholder="Amount" className={inputClass} />
+                                  <select value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value, subCategory: "", customCategory: "" }))} className={inputClass}>
+                                    {INV_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                  {editForm.category === "Other" && (
+                                    <input type="text" value={editForm.customCategory} onChange={(e) => setEditForm((f) => ({ ...f, customCategory: e.target.value }))}
+                                      placeholder="Investment type" className={inputClass} />
+                                  )}
+                                  {NEEDS_SUB.includes(editForm.category) && (
+                                    <>
+                                      {editSubsForCategory.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {editSubsForCategory.map((s) => (
+                                            <button key={s} onClick={() => setEditForm((f) => ({ ...f, subCategory: s }))} type="button"
+                                              className={`px-2 py-0.5 text-xs rounded-full cursor-pointer ${editForm.subCategory === s ? "bg-stone-800 text-amber-50" : "bg-stone-200 text-stone-600"}`}>{s}</button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <input type="text" value={editForm.subCategory} onChange={(e) => setEditForm((f) => ({ ...f, subCategory: e.target.value }))}
+                                        placeholder="Fund/Stock name" className={inputClass} />
+                                    </>
+                                  )}
+                                  <input type="text" value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))}
+                                    placeholder="Note (optional)" className={inputClass} />
+                                  <select value={editForm.accountId} onChange={(e) => setEditForm((f) => ({ ...f, accountId: e.target.value }))} className={inputClass}>
+                                    {accounts.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
+                                  </select>
+                                  <input type="date" value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} className={inputClass} />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 border border-stone-300 text-stone-600 text-xs font-bold rounded-lg cursor-pointer dark:border-stone-600 dark:text-stone-300">Cancel</button>
+                                    <button onClick={saveEdit} disabled={saving} className="flex-1 py-1.5 bg-amber-700 text-white text-xs font-bold rounded-lg cursor-pointer disabled:opacity-50">
+                                      {saving ? "Saving..." : "Save"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-amber-800 dark:text-amber-400">₹{inv.amount.toLocaleString()}</span>
+                                      {inv.subCategory && <span className="text-xs text-stone-500 dark:text-stone-400 truncate">{inv.subCategory}</span>}
+                                      <span className="text-[10px] text-stone-400">{inv.accountId?.name || "—"}</span>
+                                    </div>
+                                    {inv.note && <p className="text-[11px] text-amber-600 dark:text-amber-400 truncate mt-0.5">📝 {inv.note}</p>}
+                                    <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(inv.date)}</p>
+                                  </div>
+                                  <div className="flex gap-1 ml-2">
+                                    <button onClick={() => startEdit(inv)} className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    </button>
+                                    <button onClick={() => handleDelete(inv._id)} className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer" title="Delete">
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-bold text-amber-800 dark:text-amber-400">₹{inv.amount.toLocaleString()}</span>
-                          <button onClick={() => startEdit(inv)} className="p-1 text-stone-400 hover:text-amber-700 cursor-pointer">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          </button>
-                          <button onClick={() => handleDelete(inv._id)} className="p-1 text-red-400 hover:text-red-600 cursor-pointer">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

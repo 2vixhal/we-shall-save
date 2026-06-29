@@ -13,7 +13,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { amount, category, subCategory, accountId, date } = await req.json();
+  const { amount, category, subCategory, accountId, date, note } = await req.json();
 
   await connectDB();
 
@@ -44,6 +44,7 @@ export async function PUT(
   existing.amount = amount;
   existing.category = category;
   existing.subCategory = subCategory?.trim() || undefined;
+  existing.note = note?.trim() || undefined;
   existing.accountId = accountId;
   if (date) existing.date = new Date(date);
   await existing.save();

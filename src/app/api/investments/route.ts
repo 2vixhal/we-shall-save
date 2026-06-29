@@ -20,10 +20,15 @@ export async function GET(req: NextRequest) {
   const query: Record<string, unknown> = { userId: session.user.id };
   if (accountParam) query.accountId = accountParam;
 
-  if (monthParam !== null && yearParam !== null) {
+  const view = searchParams.get("view") || "month";
+
+  if (view === "month" && monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);
     const y = parseInt(yearParam);
     query.date = { $gte: new Date(y, m, 1), $lt: new Date(y, m + 1, 1) };
+  } else if (view === "year" && yearParam !== null) {
+    const y = parseInt(yearParam);
+    query.date = { $gte: new Date(y, 0, 1), $lt: new Date(y + 1, 0, 1) };
   }
 
   const investments = await Investment.find(query)
@@ -38,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { amount, category, subCategory, accountId, date } = await req.json();
+  const { amount, category, subCategory, accountId, date, note } = await req.json();
 
   if (!amount || !category || !accountId)
     return NextResponse.json(
@@ -65,6 +70,7 @@ export async function POST(req: NextRequest) {
     amount,
     category,
     subCategory: subCategory || undefined,
+    note: note?.trim() || undefined,
     accountId,
     date: date ? new Date(date) : new Date(),
   });

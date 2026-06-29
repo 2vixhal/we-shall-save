@@ -6,6 +6,7 @@ export interface IInvestment {
   amount: number;
   category: string;
   subCategory?: string;
+  note?: string;
   accountId: mongoose.Types.ObjectId;
   date: Date;
   createdAt: Date;
@@ -17,6 +18,7 @@ const InvestmentSchema = new Schema<IInvestment>(
     amount: { type: Number, required: true },
     category: { type: String, required: true },
     subCategory: { type: String },
+    note: { type: String },
     accountId: {
       type: Schema.Types.ObjectId,
       ref: "DepositAccount",
