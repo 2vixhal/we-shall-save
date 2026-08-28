@@ -17,7 +17,11 @@ export async function GET(req: NextRequest) {
   const accountIdParam = searchParams.get("accountId");
   const view = searchParams.get("view") || "month";
 
-  const txQuery: Record<string, unknown> = { userId: session.user.id, type: "debit" };
+  const txQuery: Record<string, unknown> = {
+    userId: session.user.id,
+    type: "debit",
+    category: { $ne: "Transfer" },
+  };
 
   if (view === "month" && monthParam !== null && yearParam !== null) {
     const m = parseInt(monthParam);

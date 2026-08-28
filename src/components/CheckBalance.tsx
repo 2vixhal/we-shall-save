@@ -70,6 +70,8 @@ export default function CheckBalance() {
   const [accLends, setAccLends] = useState<LendItem[]>([]);
   const [accFamily, setAccFamily] = useState<FamilyItem[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -106,7 +108,52 @@ export default function CheckBalance() {
     }
     setExpandedAccId(accId);
     setActiveTab("transactions");
+    setActionError("");
     fetchAccountData(accId);
+  };
+
+  const getId = (item: { _id?: string; id?: string }) => String(item._id || item.id || "");
+
+  const deleteInvestment = async (id: string) => {
+    if (!id || !expandedAccId) return;
+    if (!confirm("Delete this investment? Balance will be restored.")) return;
+    setDeletingId(id);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/investments/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setActionError(data.error || "Failed to delete investment");
+        return;
+      }
+      await fetchAccountData(expandedAccId);
+      fetchAccounts();
+    } catch {
+      setActionError("Failed to delete investment");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteFamilyTxn = async (id: string) => {
+    if (!id || !expandedAccId) return;
+    if (!confirm("Delete this family transaction? Balance will be adjusted.")) return;
+    setDeletingId(id);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/family/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setActionError(data.error || "Failed to delete transaction");
+        return;
+      }
+      await fetchAccountData(expandedAccId);
+      fetchAccounts();
+    } catch {
+      setActionError("Failed to delete transaction");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
@@ -190,6 +237,9 @@ export default function CheckBalance() {
                         <p className="text-center text-stone-400 text-sm py-3">Loading...</p>
                       ) : (
                         <>
+                          {actionError && (
+                            <p className="text-red-600 text-xs text-center bg-red-50 dark:bg-red-900/30 py-2 rounded-lg mb-2">{actionError}</p>
+                          )}
                           {/* Transactions tab */}
                           {activeTab === "transactions" && (
                             accTxns.length === 0 ? (
@@ -222,8 +272,10 @@ export default function CheckBalance() {
                               <p className="text-center text-stone-400 text-sm py-3">No investments from this account.</p>
                             ) : (
                               <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                                {accInvs.map((inv) => (
-                                  <div key={inv._id} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
+                                {accInvs.map((inv) => {
+                                  const invId = getId(inv);
+                                  return (
+                                  <div key={invId} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -236,8 +288,12 @@ export default function CheckBalance() {
                                       {inv.subCategory && <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate mt-0.5">{inv.subCategory}</p>}
                                       <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(inv.date)}</p>
                                     </div>
+                                    <button type="button" onClick={() => deleteInvestment(invId)} disabled={deletingId === invId}
+                                      className="p-1.5 ml-2 text-stone-400 hover:text-red-600 cursor-pointer disabled:opacity-50 shrink-0" title="Delete">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
                                   </div>
-                                ))}
+                                );})}
                               </div>
                             )
                           )}
@@ -273,8 +329,10 @@ export default function CheckBalance() {
                               <p className="text-center text-stone-400 text-sm py-3">No family transfers from this account.</p>
                             ) : (
                               <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                                {accFamily.map((f) => (
-                                  <div key={f._id} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
+                                {accFamily.map((f) => {
+                                  const famId = getId(f);
+                                  return (
+                                  <div key={famId} className="flex items-center justify-between bg-stone-50 dark:bg-stone-700/50 rounded-lg p-2.5 border border-stone-100 dark:border-stone-700">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2">
                                         <span className={`text-xs font-bold ${f.type === "debit" ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
@@ -287,8 +345,12 @@ export default function CheckBalance() {
                                       {f.note && <p className="text-[11px] text-pink-600 dark:text-pink-400 truncate mt-0.5">📝 {f.note}</p>}
                                       <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(f.date)}</p>
                                     </div>
+                                    <button type="button" onClick={() => deleteFamilyTxn(famId)} disabled={deletingId === famId}
+                                      className="p-1.5 ml-2 text-stone-400 hover:text-red-600 cursor-pointer disabled:opacity-50 shrink-0" title="Delete">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
                                   </div>
-                                ))}
+                                );})}
                               </div>
                             )
                           )}

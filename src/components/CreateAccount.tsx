@@ -34,6 +34,12 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
   const [editForm, setEditForm] = useState({ name: "", balance: "", source: "", customSource: "", sourceMonth: "" });
   const [editError, setEditError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [transferFromId, setTransferFromId] = useState<string | null>(null);
+  const [transferToId, setTransferToId] = useState("");
+  const [transferNote, setTransferNote] = useState("Month-end transfer");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState("");
+  const [transferSuccess, setTransferSuccess] = useState("");
 
   const now = new Date();
 
@@ -158,6 +164,52 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
       setEditingId(null);
       fetchAccounts(); onCreated();
     } catch { setEditError("Something went wrong"); }
+  };
+
+  const startTransfer = (acc: AccountDetail) => {
+    setTransferFromId(acc._id);
+    setTransferToId("");
+    setTransferNote("Month-end transfer");
+    setTransferError("");
+    setTransferSuccess("");
+    setEditingId(null);
+  };
+
+  const confirmTransfer = async () => {
+    if (!transferFromId || !transferToId) {
+      setTransferError("Please select a target account");
+      return;
+    }
+    const fromAcc = accounts.find((a) => a._id === transferFromId);
+    if (!fromAcc || fromAcc.balance <= 0) {
+      setTransferError("No balance to transfer");
+      return;
+    }
+    if (!confirm(`Transfer ₹${fromAcc.balance.toLocaleString()} from "${fromAcc.name}" to the selected account?`)) return;
+
+    setTransferLoading(true);
+    setTransferError("");
+    setTransferSuccess("");
+    try {
+      const res = await fetch(`/api/accounts/${transferFromId}/transfer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toAccountId: transferToId, note: transferNote.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTransferError(data.error || "Transfer failed");
+        return;
+      }
+      setTransferSuccess(`₹${data.amount.toLocaleString()} transferred successfully`);
+      setTransferFromId(null);
+      fetchAccounts();
+      onCreated();
+    } catch {
+      setTransferError("Something went wrong");
+    } finally {
+      setTransferLoading(false);
+    }
   };
 
   const sourceSelect = (val: string, onChange: (v: string) => void, customVal: string, onCustomChange: (v: string) => void, monthVal: string, onMonthChange: (v: string) => void) => (
@@ -285,6 +337,29 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
                     <button onClick={saveEdit} className="flex-1 py-2 bg-teal-700 text-white text-xs font-bold rounded-lg cursor-pointer">Save</button>
                   </div>
                 </div>
+              ) : transferFromId === acc._id ? (
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider">
+                    Transfer ₹{acc.balance.toLocaleString()} to
+                  </p>
+                  <select value={transferToId} onChange={(e) => setTransferToId(e.target.value)} className={inputClass}>
+                    <option value="">Select target account</option>
+                    {accounts.filter((a) => a._id !== acc._id).map((a) => (
+                      <option key={a._id} value={a._id}>{a.name} (₹{a.balance.toLocaleString()})</option>
+                    ))}
+                  </select>
+                  <input type="text" value={transferNote} onChange={(e) => setTransferNote(e.target.value)}
+                    placeholder="Note (optional)" className={inputClass} />
+                  {transferError && <p className="text-red-600 text-xs text-center">{transferError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setTransferFromId(null); setTransferError(""); }}
+                      className="flex-1 py-2 border border-stone-300 dark:border-stone-600 text-stone-600 dark:text-stone-300 text-xs font-bold rounded-lg cursor-pointer">Cancel</button>
+                    <button type="button" onClick={confirmTransfer} disabled={transferLoading || !transferToId}
+                      className="flex-1 py-2 bg-teal-700 text-white text-xs font-bold rounded-lg cursor-pointer disabled:opacity-50">
+                      {transferLoading ? "Transferring..." : "Transfer All"}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
@@ -301,11 +376,19 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
                       <span className="text-stone-400">Spent: <span className="font-semibold text-red-600 dark:text-red-400">₹{acc.totalDebited.toLocaleString()}</span></span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <div className="text-right">
                       <p className="text-lg font-bold text-stone-800 dark:text-stone-100 tabular-nums">₹{acc.balance.toLocaleString()}</p>
                     </div>
-                    <button onClick={() => startEdit(acc)}
+                    {acc.balance > 0 && (
+                      <button type="button" onClick={() => startTransfer(acc)}
+                        className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg cursor-pointer" title="Transfer balance">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </button>
+                    )}
+                    <button type="button" onClick={() => startEdit(acc)}
                       className="p-2 text-stone-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg cursor-pointer" title="Edit">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -318,6 +401,10 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
           ))}
         </div>
       ) : null}
+
+      {transferSuccess && (
+        <p className="text-emerald-700 text-sm text-center bg-emerald-50 dark:bg-emerald-900/30 py-2 rounded-lg mb-4">{transferSuccess}</p>
+      )}
 
       {/* Create new account */}
       {!showCreate ? (

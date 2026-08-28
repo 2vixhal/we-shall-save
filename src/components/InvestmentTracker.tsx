@@ -41,7 +41,10 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ amount: "", category: "", customCategory: "", subCategory: "", note: "", accountId: "", date: "" });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
+
+  const getId = (item: { _id?: string; id?: string }) => String(item._id || item.id || "");
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
@@ -102,7 +105,7 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
 
   const startEdit = (inv: InvestmentItem) => {
     const isPreset = INV_CATEGORIES.includes(inv.category) && inv.category !== "Other";
-    setEditingId(inv._id);
+    setEditingId(getId(inv));
     setEditForm({
       amount: inv.amount.toString(),
       category: isPreset ? inv.category : "Other",
@@ -135,10 +138,29 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    if (!id || deletingId) return;
     if (!confirm("Delete this investment? Balance will be restored.")) return;
-    const res = await fetch(`/api/investments/${id}`, { method: "DELETE" });
-    if (res.ok) { fetchInvestments(); fetchAccounts(); onChanged(); }
+    setDeletingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/investments/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to delete investment");
+        return;
+      }
+      if (editingId === id) setEditingId(null);
+      await fetchInvestments();
+      fetchAccounts();
+      onChanged();
+    } catch {
+      setError("Failed to delete investment");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const fmtDate = (d: string) =>
@@ -298,9 +320,11 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
 
                       {isOpen && (
                         <div className="border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 p-3 space-y-1.5 animate-[fadeIn_0.2s_ease-in-out] max-h-72 overflow-y-auto">
-                          {cs.items.map((inv) => (
-                            <div key={inv._id}>
-                              {editingId === inv._id ? (
+                          {cs.items.map((inv) => {
+                            const invId = getId(inv);
+                            return (
+                            <div key={invId}>
+                              {editingId === invId ? (
                                 <div className="bg-amber-50 dark:bg-amber-900/10 rounded-lg p-2.5 space-y-2 border border-amber-200 dark:border-amber-800">
                                   <input type="number" value={editForm.amount} onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
                                     placeholder="Amount" className={inputClass} />
@@ -349,18 +373,19 @@ export default function InvestmentTracker({ onChanged }: { onChanged: () => void
                                     {inv.note && <p className="text-[11px] text-amber-600 dark:text-amber-400 truncate mt-0.5">📝 {inv.note}</p>}
                                     <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(inv.date)}</p>
                                   </div>
-                                  <div className="flex gap-1 ml-2">
-                                    <button onClick={() => startEdit(inv)} className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
+                                  <div className="flex gap-1 ml-2 shrink-0">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); startEdit(inv); }} className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                     </button>
-                                    <button onClick={() => handleDelete(inv._id)} className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer" title="Delete">
+                                    <button type="button" onClick={(e) => handleDelete(invId, e)} disabled={deletingId === invId}
+                                      className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer disabled:opacity-50" title="Delete">
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                     </button>
                                   </div>
                                 </div>
                               )}
                             </div>
-                          ))}
+                          );})}
                         </div>
                       )}
                     </div>

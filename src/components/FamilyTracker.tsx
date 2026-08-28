@@ -36,6 +36,9 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
   const [success, setSuccess] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<FamilyTxn & { accountId: string }>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const getId = (item: { _id?: string; id?: string }) => String(item._id || item.id || "");
 
   const fetchAccounts = async () => {
     const res = await fetch("/api/accounts");
@@ -98,10 +101,29 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
     finally { setLoading(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this transaction?")) return;
-    const res = await fetch(`/api/family/${id}`, { method: "DELETE" });
-    if (res.ok) { fetchTxns(); fetchAccounts(); onChanged(); }
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    if (!id || deletingId) return;
+    if (!confirm("Delete this transaction? Balance will be adjusted.")) return;
+    setDeletingId(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/family/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to delete transaction");
+        return;
+      }
+      if (editId === id) setEditId(null);
+      await fetchTxns();
+      fetchAccounts();
+      onChanged();
+    } catch {
+      setError("Failed to delete transaction");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleEditSave = async () => {
@@ -282,9 +304,11 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
 
                   {isOpen && (
                     <div className="border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/50 p-3 space-y-1.5 animate-[fadeIn_0.2s_ease-in-out] max-h-72 overflow-y-auto">
-                      {ms.txns.map((tx) => (
-                        <div key={tx._id}>
-                          {editId === tx._id ? (
+                      {ms.txns.map((tx) => {
+                        const txId = getId(tx);
+                        return (
+                        <div key={txId}>
+                          {editId === txId ? (
                             <div className="bg-pink-50 dark:bg-pink-900/10 rounded-lg p-2.5 space-y-2 border border-pink-200 dark:border-pink-800">
                               <div className="grid grid-cols-2 gap-2">
                                 <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as "debit" | "credit" })}
@@ -314,20 +338,20 @@ export default function FamilyTracker({ onChanged }: { onChanged: () => void }) 
                                 {tx.note && <p className="text-[11px] text-pink-600 dark:text-pink-400 truncate mt-0.5">📝 {tx.note}</p>}
                                 <p className="text-[10px] text-stone-400 mt-0.5">{fmtDate(tx.date)}</p>
                               </div>
-                              <div className="flex gap-1 ml-2">
-                                <button onClick={() => { setEditId(tx._id); setEditForm({ type: tx.type, amount: tx.amount, member: tx.member, accountId: typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId }); }}
+                              <div className="flex gap-1 ml-2 shrink-0">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setEditId(txId); setEditForm({ type: tx.type, amount: tx.amount, member: tx.member, accountId: typeof tx.accountId === "object" ? tx.accountId._id : tx.accountId }); }}
                                   className="p-1.5 text-stone-400 hover:text-amber-600 cursor-pointer" title="Edit">
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
-                                <button onClick={() => handleDelete(tx._id)}
-                                  className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer" title="Delete">
+                                <button type="button" onClick={(e) => handleDelete(txId, e)} disabled={deletingId === txId}
+                                  className="p-1.5 text-stone-400 hover:text-red-600 cursor-pointer disabled:opacity-50" title="Delete">
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                               </div>
                             </div>
                           )}
                         </div>
-                      ))}
+                      );})}
                     </div>
                   )}
                 </div>
