@@ -45,7 +45,8 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
 
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalInvestments, setTotalInvestments] = useState(0);
-  const [totalFamily, setTotalFamily] = useState(0);
+  const [totalFamilySent, setTotalFamilySent] = useState(0);
+  const [totalFamilyReceived, setTotalFamilyReceived] = useState(0);
 
   const fetchAccounts = useCallback(async () => {
     setLoadingAccs(true);
@@ -54,7 +55,7 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
         fetch("/api/accounts?detailed=true"),
         fetch("/api/analysis?view=all"),
         fetch("/api/investments?view=all"),
-        fetch("/api/family"),
+        fetch("/api/family?view=all"),
       ]);
       if (accRes.ok) setAccounts(await accRes.json());
       if (expRes.ok) {
@@ -67,7 +68,8 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
       }
       if (famRes.ok) {
         const fams: { type: string; amount: number }[] = await famRes.json();
-        setTotalFamily(fams.filter((f) => f.type === "debit").reduce((s, f) => s + f.amount, 0));
+        setTotalFamilySent(fams.filter((f) => f.type === "debit").reduce((s, f) => s + f.amount, 0));
+        setTotalFamilyReceived(fams.filter((f) => f.type === "credit").reduce((s, f) => s + f.amount, 0));
       }
     } catch { /* silently fail */ }
     finally { setLoadingAccs(false); }
@@ -78,20 +80,23 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
   const getSourceTotal = (src: string) =>
     accounts.filter((a) => a.source === src).reduce((s, a) => s + a.originalTotal + a.totalCredited, 0);
 
-  const totalReceived = accounts.reduce((s, a) => s + a.originalTotal + a.totalCredited, 0);
+  const salaryTotal = getSourceTotal("Salary");
+  const allowanceTotal = getSourceTotal("Allowance");
+  const scholarshipTotal = getSourceTotal("Scholarship");
+  const totalReceived = salaryTotal + allowanceTotal + scholarshipTotal + totalFamilyReceived;
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
 
   const sourceBreakdown = [
-    { label: "Salary", amount: getSourceTotal("Salary"), color: "emerald" },
-    { label: "Allowances", amount: getSourceTotal("Allowance"), color: "blue" },
-    { label: "Scholarship", amount: getSourceTotal("Scholarship"), color: "violet" },
-    { label: "Other", amount: totalReceived - getSourceTotal("Salary") - getSourceTotal("Allowance") - getSourceTotal("Scholarship"), color: "stone" },
+    { label: "Salary", amount: salaryTotal, color: "emerald" },
+    { label: "Allowances", amount: allowanceTotal, color: "blue" },
+    { label: "Scholarship", amount: scholarshipTotal, color: "violet" },
+    { label: "Family", amount: totalFamilyReceived, color: "pink" },
   ].filter((s) => s.amount > 0);
 
   const spentBreakdown = [
     { label: "Expenses", amount: totalExpenses, color: "red" },
     { label: "Investments", amount: totalInvestments, color: "amber" },
-    { label: "Family", amount: totalFamily, color: "pink" },
+    { label: "Family", amount: totalFamilySent, color: "pink" },
     { label: "Balance", amount: totalBalance, color: "emerald" },
   ].filter((s) => s.amount > 0);
 
@@ -265,6 +270,7 @@ export default function CreateAccount({ onCreated }: { onCreated: () => void }) 
                     emerald: { bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-100 dark:border-emerald-800", title: "text-emerald-600 dark:text-emerald-400", amount: "text-emerald-700 dark:text-emerald-300" },
                     blue: { bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-100 dark:border-blue-800", title: "text-blue-600 dark:text-blue-400", amount: "text-blue-700 dark:text-blue-300" },
                     violet: { bg: "bg-violet-50 dark:bg-violet-900/20", border: "border-violet-100 dark:border-violet-800", title: "text-violet-600 dark:text-violet-400", amount: "text-violet-700 dark:text-violet-300" },
+                    pink: { bg: "bg-pink-50 dark:bg-pink-900/20", border: "border-pink-100 dark:border-pink-800", title: "text-pink-600 dark:text-pink-400", amount: "text-pink-700 dark:text-pink-300" },
                     stone: { bg: "bg-stone-50 dark:bg-stone-800", border: "border-stone-200 dark:border-stone-700", title: "text-stone-500 dark:text-stone-400", amount: "text-stone-700 dark:text-stone-200" },
                   };
                   const c = colorMap[s.color] || colorMap.stone;
